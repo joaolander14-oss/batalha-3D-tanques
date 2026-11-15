@@ -162,6 +162,14 @@
     if (c.evac) d('cyl', [0, gy, mantZ - bl * 0.66], [gd * 1.55, 0.28, gd * 1.55], [90, 0, 0], 'metal', 'gun');
     d('cyl', [0, gy, mantZ - 0.15], [gd * 1.5, 0.3, gd * 1.5], [90, 0, 0], 'metal', 'gun');          // base do cano
 
+    if (c.aa) {
+      const tgp = casemate ? 'hull' : 'turret', nbMap = { twin: 2, quad: 4, six: 6, wirbel: 4, tung: 2, gepard: 2, single: 1, sam: 0 }, nb = nbMap[c.aa] != null ? nbMap[c.aa] : 2;
+      d('box', [0, ty + 0.02, tz + 0.05], [tr * 2.1, th * 1.1 + 0.15, tr * 2.0], null, 'dark', tgp);
+      for (let k = 1; k < nb; k++) { const ox = (k % 2 ? 1 : -1) * (0.2 + 0.18 * Math.floor((k + 1) / 2)), oy = k >= 3 ? 0.18 : 0; d('cyl', [ox, gy + oy, mantZ - bl / 2], [gd, bl, gd], [90, 0, 0], 'metal', 'gun'); }
+      if (c.radar || c.aa === 'gepard' || c.aa === 'tung') { d('cyl', [0, ty + th / 2 + 0.72, tz + tr * 0.55], [0.95, 0.06, 0.95], [55, 0, 0], 'metal', tgp); d('cyl', [0, ty + th / 2 + 0.35, tz + tr * 0.55], [0.08, 0.7, 0.08], null, 'metal', tgp); }
+      if (c.aa === 'gepard') d('sphere', [0, ty + th / 2 + 0.42, tz - tr * 0.45], [0.7, 0.5, 0.7], null, 'dark', tgp);
+      if (c.sam) { const nt = c.sam >= 8 ? 4 : c.sam >= 6 ? 3 : 2; [-1, 1].forEach(sg => { for (let k = 0; k < nt; k++) d('cyl', [sg * (tr * 0.95 + 0.05), ty + 0.2 + k * 0.22, tz - 0.3], [0.2, 1.6, 0.2], [-55, 0, 0], 'metal', tgp); }); }
+    }
     /* escala uniforme (espessuras preservadas) */
     const s = c.s || 1;
     const scl = p => {
@@ -174,7 +182,7 @@
     if (s !== 1) { P.forEach(scl); D.forEach(q => { q.pos = q.pos.map(x => rd(x * s, 4)); q.size = q.size.map(x => rd(x * s, 4)); }); }
     const st = Object.assign({ cal: c.cal, vk: c.vk, vmax: c.vmax, rev: Math.max(8, c.vmax * 0.3), turn: 30, trav: 22, elev: [-8, 18], reload: c.reload, rack: c.rack || 50, mass: c.mass, fixedGun: casemate, hp: 1,
       turPivot: [0, ty * s, tz * s], gunPivot: [0, gy * s, (mantZ + 0.2) * s], muzzle: [0, gy * s, (mantZ - bl) * s], bodyLen: 2 * Lh * s + 0.2, bodyWid: 2 * (Wh + 0.3) * s }, c.stats || {});
-    return { name: c.name, nation: c.nation, paint: c.paint, parts: P, deco: D, stats: st };
+    return { name: c.name, nation: c.nation, paint: c.paint, cat: c.cat || 'tank', parts: P, deco: D, stats: st };
   }
 
   /* ---------------- elenco ----------------
@@ -267,8 +275,8 @@
   SB.garage = [];
   try { SB.garage = JSON.parse(localStorage.getItem('sb.garage') || '[]'); } catch (e) {}
   SB.saveGarage = () => { try { localStorage.setItem('sb.garage', JSON.stringify(SB.garage)); } catch (e) {} };
-  SB.allTanks = () => SB.ROSTER.map(r => ({ id: r.id, name: r.name, nation: r.nation, custom: false, kind: 'tank', mass: r.mass, cal: r.cal, vmax: r.vmax, get: () => SB.buildTank(r.id) }))
-    .concat((SB.HELIS || []).map(h => ({ id: h.id, name: h.name, nation: h.nation, custom: false, kind: 'heli', mass: h.cfg.mass, cal: h.cfg.cal, vmax: h.cfg.vmax, get: () => SB.buildHeli(h.id) })))
+  SB.allTanks = () => SB.ROSTER.map(r => ({ id: r.id, name: r.name, nation: r.nation, custom: false, kind: 'tank', cat: (r.cfg && r.cfg.cat) || 'tank', mass: r.mass, cal: r.cal, vmax: r.vmax, get: () => SB.buildTank(r.id) }))
+    .concat((SB.HELIS || []).map(h => ({ id: h.id, name: h.name, nation: h.nation, custom: false, kind: 'heli', cat: 'heli', mass: h.cfg.mass, cal: h.cfg.cal, vmax: h.cfg.vmax, get: () => SB.buildHeli(h.id) })))
     .concat(SB.garage.map(g => ({ id: g.id, name: g.name, nation: 'Customizado', custom: true, kind: g.stats && g.stats.kind === 'heli' ? 'heli' : 'tank', mass: g.stats ? g.stats.mass : 40, cal: g.stats ? g.stats.cal : 90, vmax: g.stats ? g.stats.vmax : 50, get: () => SB.fillStats(JSON.parse(JSON.stringify(g))) })));
   SB.getTankById = id => { const t = SB.allTanks().find(x => x.id === id); return t ? t.get() : SB.buildTank('t3485'); };
 

@@ -74,7 +74,7 @@
     const setRow = (i, k, v) => setLobby({ loadout: L.loadout.map((r, j) => j === i ? { ...r, [k]: v } : r) });
     const maxFor = i => { const others = L.loadout.reduce((a, r, j) => a + (j === i ? 0 : r.n * slotsOf(r.aid)), 0); return Math.max(0, Math.floor((rack - others) / slotsOf(L.loadout[i].aid))); };
     const nations = ['Todas', ...Array.from(new Set(tanks.map(t => t.nation)))];
-    const list = tanks.filter(t => (!L.nation || L.nation === 'Todas' || t.nation === L.nation) && (!L.kind || L.kind === 'all' || t.kind === L.kind));
+    const list = tanks.filter(t => (!L.nation || L.nation === 'Todas' || t.nation === L.nation) && (!L.kind || L.kind === 'all' || (t.cat || t.kind) === L.kind));
     const net = SB.Net.status, players = SB.Lobby.players, online = L.mode !== 'solo', hosting = SB.Net.mode === 'host', joined = SB.Net.mode === 'client';
     const settings = () => ({ map: L.map, botsA: L.botsA, botsB: L.botsB, heliA: L.heliA || 0, heliB: L.heliB || 0, winKills: L.winKills, minutes: L.minutes });
     const go = async () => {
@@ -89,10 +89,10 @@
         Row('Seu nome', h('input', { value: L.name, onChange: e => setLobby({ name: e.target.value }) })),
         Row('Modo', h(Sel, { v: L.mode, on: v => { if (v === 'solo') SB.Lobby.leave(); setLobby({ mode: v }); }, opts: [['solo', 'Solo contra bots'], ['host', 'Online: criar sala'], ['join', 'Online: entrar em sala']] })),
         L.mode === 'join' ? Row('Código da sala', h('input', { value: L.joinCode || '', placeholder: 'ex.: K7P2Q', onChange: e => setLobby({ joinCode: e.target.value.toUpperCase() }) })) : null),
-      div({ className: 'sec' }, 'Veículo (' + list.length + ')  ', h(Sel, { v: L.kind || 'all', on: v => setLobby({ kind: v }), opts: [['all', 'Todos'], ['tank', 'Tanques (100)'], ['heli', 'Helicópteros (10)']] }), ' ', h(Sel, { v: L.nation || 'Todas', on: v => setLobby({ nation: v }), opts: nations.map(n => [n, n]) })),
+      div({ className: 'sec' }, 'Veículo (' + list.length + ')  ', h(Sel, { v: L.kind || 'all', on: v => setLobby({ kind: v }), opts: [['all', 'Todos (160)'], ['tank', 'Tanques (100)'], ['light', 'IFV, APC e leves (31)'], ['aa', 'Antiaéreos (19)'], ['heli', 'Helicópteros (10)']] }), ' ', h(Sel, { v: L.nation || 'Todas', on: v => setLobby({ nation: v }), opts: nations.map(n => [n, n]) })),
       div({ className: 'list tall' }, list.map(t => div({ key: t.id, className: 'item' + (t.id === cur.id ? ' on' : ''), onClick: () => pickTank(t.id) },
         span({ className: 'nm' }, (t.custom ? '★ ' : '') + (t.kind === 'heli' ? '🚁 ' : '') + t.name), span({ className: 'tag' }, t.nation + ' · ' + t.cal + ' mm · ' + t.mass + ' t · ' + t.vmax + ' km/h')))),
-      div({ className: 'hint' }, 'Selecionado: ', h('b', null, cur.name), ' — ' + (def.stats.kind === 'heli' ? 'helicóptero: canhão ' + def.stats.cal + ' mm, capacidade ' + rack + ' unidades (tiro=1, foguete=8, míssil=40). Espaço sobe, Shift desce.' : 'canhão ' + def.stats.cal + ' mm, recarga ' + def.stats.reload + ' s, paiol ' + rack + ' unidades') + '. Crie veículos na aba 🛠 Veículo.'),
+      div({ className: 'hint' }, 'Selecionado: ', h('b', null, cur.name), ' — ' + (def.stats.kind === 'heli' ? 'helicóptero: canhão ' + def.stats.cal + ' mm, capacidade ' + rack + ' unidades (tiro=1, foguete=8, míssil=40). Espaço sobe, Shift desce.' : 'canhão ' + def.stats.cal + ' mm, ' + (def.stats.rof ? 'cadência ' + def.stats.rof + ' tiros/s' + (def.stats.elev[1] > 60 ? ' (antiaéreo: eleva até ' + def.stats.elev[1] + '°)' : '') : 'recarga ' + def.stats.reload + ' s') + ', paiol ' + rack + ' unidades') + '. Crie veículos na aba 🛠 Veículo.'),
       div({ className: 'sec' }, 'Munições (' + used + '/' + rack + ' unid.)'),
       div({ className: 'form' },
         L.loadout.map((r, i) => div({ className: 'row', key: i },
