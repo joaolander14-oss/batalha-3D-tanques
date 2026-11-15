@@ -253,6 +253,13 @@
   SB.TANK_PRESETS = { vazio: () => ({ name: 'Novo tanque', parts: [], deco: [], stats: SB.defaultStats() }) };
   SB.TANK_NAMES = { vazio: 'Em branco' };
   SB.ROSTER.forEach(r => { SB.TANK_PRESETS[r.id] = () => SB.buildTank(r.id); SB.TANK_NAMES[r.id] = r.name + ' (' + r.nation + ')'; });
+  SB._tk = { ERA, L, V };
+  SB.registerTanks = function (list) {
+    list.forEach(r => {
+      const o = { id: r[0], name: r[1], nation: r[2], mass: r[3], vmax: r[4], cal: r[5], vk: r[6], reload: r[7], cfg: r[8] };
+      SB.ROSTER.push(o); SB.TANK_PRESETS[o.id] = () => SB.buildTank(o.id); SB.TANK_NAMES[o.id] = o.name + ' (' + o.nation + ')';
+    });
+  };
   SB.defaultStats = () => ({ cal: 90, vk: 1.1, vmax: 50, rev: 15, turn: 30, trav: 22, elev: [-8, 18], reload: 6, rack: 50, mass: 40, fixedGun: false, turPivot: [0, 1.75, -0.2], gunPivot: [0, 1.8, -0.9], muzzle: [0, 1.8, -3.4], bodyLen: 6.2, bodyWid: 3.3 });
   SB.fillStats = function (t) { t.stats = Object.assign(SB.defaultStats(), t.stats || {}); t.parts.forEach(p => { if (!p.grp) p.grp = 'hull'; }); if (!t.deco) t.deco = []; return t; };
 
@@ -260,16 +267,18 @@
   SB.garage = [];
   try { SB.garage = JSON.parse(localStorage.getItem('sb.garage') || '[]'); } catch (e) {}
   SB.saveGarage = () => { try { localStorage.setItem('sb.garage', JSON.stringify(SB.garage)); } catch (e) {} };
-  SB.allTanks = () => SB.ROSTER.map(r => ({ id: r.id, name: r.name, nation: r.nation, custom: false, mass: r.mass, cal: r.cal, vmax: r.vmax, get: () => SB.buildTank(r.id) }))
-    .concat(SB.garage.map(g => ({ id: g.id, name: g.name, nation: 'Customizado', custom: true, mass: g.stats ? g.stats.mass : 40, cal: g.stats ? g.stats.cal : 90, vmax: g.stats ? g.stats.vmax : 50, get: () => SB.fillStats(JSON.parse(JSON.stringify(g))) })));
+  SB.allTanks = () => SB.ROSTER.map(r => ({ id: r.id, name: r.name, nation: r.nation, custom: false, kind: 'tank', mass: r.mass, cal: r.cal, vmax: r.vmax, get: () => SB.buildTank(r.id) }))
+    .concat((SB.HELIS || []).map(h => ({ id: h.id, name: h.name, nation: h.nation, custom: false, kind: 'heli', mass: h.cfg.mass, cal: h.cfg.cal, vmax: h.cfg.vmax, get: () => SB.buildHeli(h.id) })))
+    .concat(SB.garage.map(g => ({ id: g.id, name: g.name, nation: 'Customizado', custom: true, kind: g.stats && g.stats.kind === 'heli' ? 'heli' : 'tank', mass: g.stats ? g.stats.mass : 40, cal: g.stats ? g.stats.cal : 90, vmax: g.stats ? g.stats.vmax : 50, get: () => SB.fillStats(JSON.parse(JSON.stringify(g))) })));
   SB.getTankById = id => { const t = SB.allTanks().find(x => x.id === id); return t ? t.get() : SB.buildTank('t3485'); };
 
   SB.ammoForGun = function (a, stats) {
+    if (a.fixedCal) { const F = SB.deriveAmmo(a); F.name = a.name; F.id = a.id; F.shortName = a.name.replace(/^[A-Z0-9-]+ · /, '').replace(/^\d+ mm /, ''); return F; }
     const cal = Math.max(...a.layers.flatMap(l => l.pts.map(p => p[1]))) * 2;
     const k = stats.cal / Math.max(cal, 1);
     const a2 = SB.ammoClone(a); a2.layers.forEach(l => { l.pts = l.pts.map(p => [p[0] * k, p[1] * k]); });
-    a2.v0 = a.v0 * stats.vk / 1.1;
-    const D = SB.deriveAmmo(a2); D.name = a.name; D.id = a.id; D.shortName = a.name.replace(/^\d+ mm /, '');
+    a2.v0 = a.v0 * stats.vk / 1.1; if (a.tntKg != null) a2.tntKg = a.tntKg * Math.pow(k, 3);
+    const D = SB.deriveAmmo(a2); D.name = a.name; D.id = a.id; D.shortName = a.name.replace(/^[A-Z0-9-]+ · /, '').replace(/^\d+ mm /, '');
     return D;
   };
 })(window.SB);

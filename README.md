@@ -2,12 +2,14 @@
 
 Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo War Thunder.
 
-- 50 tanques (2ª Guerra até os modernos) + garagem para criar os seus
-- Editor 3D de tanque, de munição (desenho do projétil) e de materiais
+- 100 tanques (2ª Guerra, Guerra Fria e modernos) e 10 helicópteros de ataque, com garagem para criar os seus
+- As 61 munições do PDF "Munições de Tanque" (AP … APFSDS, HE, HEAT, ATGM guiados, foguetes, antipessoal, especiais, treino) + munições de helicóptero (canhão, foguetes, Hellfire/Ataka/Spike…, ar-ar)
+- Mísseis guiados (segue a mira, trava no alvo, ataque por cima, sobrevoo/EFP, infravermelho) e foguetes que voam retos
+- Editor 3D de veículo (tanque ou helicóptero), de munição (desenho do projétil/míssil/foguete) e de materiais
 - Penetração, ricochete, estilhaços, incêndio e detonação de munição simulados de verdade
 - Raio-X do próprio tanque (tecla X) e repetição em raio-X de cada acerto
 - Solo contra bots ou online (P2P via PeerJS, sala por código)
 
 ## Como jogar
 Abra `index.html` por um servidor estático (`python -m http.server`) ou pelo GitHub Pages.
-W/S acelera, A/D vira, mouse mira, clique atira, botão direito mira telescópica, 1-4 munição, X raio-X, F extintor, Tab placar.
+W/S acelera, A/D vira (helicóptero: Espaço sobe, Shift desce), mouse mira, clique atira, botão direito mira telescópica, 1-4 munição, X raio-X, F extintor, Tab placar.

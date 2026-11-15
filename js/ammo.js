@@ -62,6 +62,7 @@
       layers.push({ id: LID(), name: 'Corpo', role: 'body', mat: o.bodyMat || 'apst', pts: region(env, null, 0, xc, 18) });
     }
     if (o.cap) layers.push({ id: LID(), name: 'Capuz', role: 'cap', mat: o.capMat || 'mild', pts: region(env, null, xc, o.L, 8) });
+    if (o.bcap) layers.push({ id: LID(), name: 'Coifa balística', role: 'cap', mat: 'al', pts: region(env, null, o.L - o.bcap - (o.cap ? 0 : 0), o.L, 6).map(p => [p[0], p[1]]) });
     return layers;
   }
   function mkRod(o) {
@@ -132,7 +133,7 @@
       if (l.role === 'sabot') return; // descartado no cano
       out.mass += mass; xmin = Math.min(xmin, b.x0); xmax = Math.max(xmax, b.x1); rmax = Math.max(rmax, b.r1);
       l.pts.forEach(p => pts.push(p));
-      if (l.role === 'filler') { out.fillMass += mass; out.tnt += mass * (m.expl || 1); }
+      if (l.role === 'filler') { out.fillMass += mass; out.tnt += mass * (m.expl || 0); }
       else if (l.role === 'core') out.core = { L: b.x1 - b.x0, D: 2 * b.r1, dens: m.dens, yld: m.yld, mass, mat: m };
       else if (l.role === 'liner') {
         const al = Math.atan2(b.r1, b.x1 - b.x0);
@@ -154,13 +155,17 @@
       if (!out.liner) { out.warnings.push('HEAT precisa de uma camada com função "liner".'); out.heatP0 = 0; }
       else {
         const ang = clamp(1 - 0.012 * Math.abs(2 * out.liner.alpha - 55), 0.6, 1.1);
-        out.heatP0 = 4.4 * out.liner.D * Math.sqrt(out.liner.dens / 8960) * ang * (a.quality || 1);
+        out.heatP0 = 4.4 * out.liner.D * Math.sqrt(out.liner.dens / 8960) * ang * (a.quality || 1) * (a.pk || 1);
       }
       const lay = a.layers.find(l => l.role === 'liner');
       if (lay) out.stand = Math.max(10, xmax - lay._b.x1);
     }
     if (T.fam === 'rod' && !out.core) out.warnings.push('Este tipo precisa de uma camada com função "core" (núcleo).');
     if ((T.fam === 'he' || T.fam === 'hesh') && out.tnt <= 0) out.warnings.push('Sem explosivo: adicione uma camada "filler".');
+    if (a.tntKg != null) out.tnt = a.tntKg;
+    out.pk = a.pk || 1; out.tb = T.tb || 1; out.blast = T.blast || 1; out.fireP = T.fire || 0; out.burst = T.burst || null; out.tandem = !!T.tandem; out.efp = !!T.efp; out.mp = !!T.mp; out.frag = T.frag || 1;
+    out.pellets = a.pellets || T.pellets || 0; out.smoke = T.smoke || 0; out.illum = T.illum || 0; out.sub = a.subs || T.sub || 0; out.inert = !!T.inert; out.guid = a.guid || T.guid || null; out.rocket = !!T.rocket; out.cls = T.cls; out.wc = SB.wcls ? SB.wcls(a) : 'gun';
+    out.turnRate = a.turn || (out.guid === 'ir' ? 70 : (out.guid === 'top' || out.guid === 'over') ? 55 : 38); out.burn = a.burn || 1.2; out.rof = a.rof || (out.wc === 'gun' ? 0 : out.wc === 'rocket' ? 4 : 0.35); out.slots = a.slots || 1; out.fixedCal = !!a.fixedCal; out.sym = a.type;
     out.penHE = 18 * Math.pow(Math.max(out.tnt, 0.001), 0.4);
     out.heshThr = 55 * Math.pow(Math.max(out.tnt, 0.001), 0.45);
     return out;
@@ -188,11 +193,11 @@
   /* penetração nominal em RHA a 0° (mm) a uma distância */
   SB.nominalPen = function (A, dist) {
     const v = SB.velAt(A, dist);
-    if (A.fam === 'shot') return SB.Kc * A.kT * Math.sqrt(A.mass) * Math.pow(v, 1.43) / Math.pow(Math.max(A.d, 1), 1.07);
+    if (A.fam === 'shot') return (A.pk || 1) * SB.Kc * A.kT * Math.sqrt(A.mass) * Math.pow(v, 1.43) / Math.pow(Math.max(A.d, 1), 1.07);
     if (A.fam === 'rod' && A.core) {
       const c = A.core, u = SB.tate(v, c.dens, c.yld * 1e9, SB.RHA.dens, SB.RHA.rt);
       if (!u) return 0;
-      return c.L * u / (v - u);
+      return (A.pk || 1) * c.L * u / (v - u);
     }
     if (A.fam === 'heat') return (A.heatP0 || 0) * 0.92;
     if (A.fam === 'he') return A.penHE;
@@ -200,4 +205,5 @@
     return 0;
   };
   SB.ammoClone = a => JSON.parse(JSON.stringify(a));
+  SB._b = { samp, region, hollow, shellEnv, mkShell, mkRod, mkHeat, LID, f2, ammo, ogive };
 })(window.SB);

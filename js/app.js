@@ -65,6 +65,7 @@
         Row('Forma', p.kind === 'armor' ? h(Sel,{ v: p.shape, on: v => updPart(p.id, { shape: v }), opts: Object.entries(SB.SHAPES) }) : span({}, SB.SHAPES[p.shape])),
         p.kind !== 'armor' ? Row('Tipo', h(Sel,{ v: p.sub, on: v => updPart(p.id, { sub: v }), opts: Object.entries(SB.SUBS).filter(([, v]) => v.kind === p.kind).map(([k, v]) => [k, v.n]) })) : null,
         Row('Material', h(Sel,{ v: p.mat, on: v => updPart(p.id, { mat: v }), opts: allMatOpts() })),
+        Row('Grupo (batalha)', h(Sel, { v: p.grp || 'hull', on: v => updPart(p.id, { grp: v }), opts: [['hull', 'Casco / fuselagem'], ['turret', 'Torre / canhão de queixo (gira)'], ['gun', 'Canhão (eleva)'], ['rotor', 'Rotor principal (gira)'], ['rotor2', 'Rotor inferior (coaxial)'], ['tail', 'Rotor de cauda (gira)']] })),
         Row('Posição (m)', ...[0, 1, 2].map(i => h(Num,{ key: i, v: p.pos[i], on: v => setV('pos', i, v), step: 0.05, w: 62 }))),
         Row('Tamanho (mm)', ...[0, 1, 2].map(i => (shapeSingle && i === 2) ? null : h(Num,{ key: i, v: rd(p.size[i] * 1000, 1), on: v => setSz(i, v), step: 5, w: 62 }))),
         shapeSingle ? div({ className: 'hint' }, p.shape === 'capsule' ? 'x = diâmetro, y = altura total' : 'x = diâmetro, y = comprimento (eixo local Y)') : null,
@@ -153,7 +154,23 @@
         Row('Tipo', h(Sel,{ v: a.type, on: v => editAmmo(n => { n.type = v; }), opts: Object.entries(SB.TYPE).map(([k, v]) => [k, v.n]) })),
         Row('Vel. de saída (m/s)', h(Num,{ v: a.v0, on: v => editAmmo(n => { n.v0 = Math.max(50, v); }), step: 10 })),
         ['AP', 'APC', 'APCBC', 'APBC', 'APHE'].includes(a.type) ? [Row('Espoleta: sens. (mm)', h(Num,{ v: a.sens, on: v => editAmmo(n => { n.sens = v; }), step: 1 })), Row('Espoleta: retardo (ms)', h(Num,{ v: a.delay, on: v => editAmmo(n => { n.delay = v; }), step: 0.1 }))] : null,
-        a.type === 'HEAT' ? Row('Qualidade do liner', h(Num,{ v: a.quality || 1, on: v => editAmmo(n => { n.quality = v; }), step: 0.05 })) : null),
+        Row('Classe', span({}, (SB.CLS_NAMES[(SB.TYPE[a.type] || {}).cls] || '') + (A.guid ? ' · guiada (' + A.guid + ')' : '') + (A.rocket ? ' · foguete não guiado' : ''))),
+        Row('Explosivo (kg TNT, manual)', h(Num, { v: a.tntKg != null ? a.tntKg : rd(A.tnt, 3), on: v => editAmmo(n => { n.tntKg = Math.max(0, v); }), step: 0.1 })),
+        Row('Calibração de penetração (×)', h(Num, { v: rd(a.pk || 1, 3), on: v => editAmmo(n => { n.pk = Math.max(0.05, v); }), step: 0.05 })),
+        (A.wc !== 'gun') ? [
+          Row('Guiagem', h(Sel, { v: a.guid || (SB.TYPE[a.type] || {}).guid || 'none', on: v => editAmmo(n => { n.guid = v === 'none' ? null : v; }), opts: [['none', 'Nenhuma (foguete reto)'], ['sacls', 'Segue a mira (SACLOS/laser)'], ['lock', 'Trava no alvo (dispara e esquece)'], ['top', 'Ataque por cima (mergulho)'], ['over', 'Sobrevoo (EFP)'], ['ir', 'Infravermelho (ar-ar)']] })),
+          Row('Giro do míssil (°/s)', h(Num, { v: a.turn || A.turnRate, on: v => editAmmo(n => { n.turn = v; }), step: 5 })),
+          Row('Queima do motor (s)', h(Num, { v: a.burn || A.burn, on: v => editAmmo(n => { n.burn = Math.max(0.2, v); }), step: 0.1 })),
+          Row('Cadência (tiros/s, helicóptero)', h(Num, { v: a.rof || A.rof, on: v => editAmmo(n => { n.rof = Math.max(0.05, v); }), step: 0.1 })),
+          Row('Calibre fixo (não escala)', h('input', { type: 'checkbox', checked: !!a.fixedCal, onChange: e => editAmmo(n => { n.fixedCal = e.target.checked; }) })),
+        ] : Row('Cadência (tiros/s, helicóptero)', h(Num, { v: a.rof || 10, on: v => editAmmo(n => { n.rof = Math.max(0.5, v); }), step: 1 })),
+        Row('Espaço no paiol (unid.)', h(Num, { v: a.slots || 1, on: v => editAmmo(n => { n.slots = Math.max(0.1, v); }), step: 1 })),
+        a.pellets !== undefined || A.pellets ? Row('Pelotas / flechetes', h(Num, { v: a.pellets || A.pellets, on: v => editAmmo(n => { n.pellets = Math.max(0, Math.round(v)); }), step: 50 })) : null,
+        (SB.TYPE[a.type] || {}).sub || a.subs ? Row('Submunições', h(Num, { v: a.subs || (SB.TYPE[a.type] || {}).sub, on: v => editAmmo(n => { n.subs = Math.max(1, Math.round(v)); }), step: 1 })) : null,
+        a.info ? div({ className: 'hint' }, '📄 PDF: ', h('b', null, a.info.s || ''), ' ', a.info.y || '', ' · ', a.info.m || '', ' · efeitos: ', (a.info.fx || []).join(', ')) : null,
+        a.type === 'HEAT' ? Row('Qualidade do liner', h(Num,{ v: a.quality || 1, on: v => editAmmo(n => { n.quality = v; }), step: 0.05 })) : null,
+        div({ className: 'btns' }, [['Novo míssil', 'ATGM · '], ['Novo foguete', 'RKT-FRAG · '], ['Nova munição de canhão', 'AP · '], ['Nova munição de helicóptero', '30×165 mm 2A42 HE-FRAG-T']].map(([lab, pre]) => button({ key: lab, onClick: () => { const t = s.ammos.find(x => x.name.indexOf(pre) === 0); if (!t) return; const n = SB.ammoClone(t); n.id = 'u' + Math.random().toString(36).slice(2, 8); n.name = lab.replace('Novo ', 'Meu ').replace('Nova ', 'Minha ') + ' ' + (s.ammos.length + 1); n.builtin = false; Store.set({ ammos: [...s.ammos, n], ammoId: n.id, layerSel: null }); saveAmmos(); SB.Scene.showAmmo(n, s.cut); } }, '＋ ' + lab))),
+        div({ className: 'hint' }, 'Dica: desenhe o projétil/míssil/foguete abaixo e escolha o tipo; a penetração e o dano saem do desenho + calibração. Armas de calibre fixo (foguetes e mísseis) não são reescaladas ao canhão.')),
       div({ className: 'sec' }, 'Desenho do projétil (arraste os pontos; duplo clique na borda cria ponto; botão direito remove)'),
       h(ProfileEditor),
       div({ className: 'btns' },
@@ -276,7 +293,7 @@
   }
 
   /* ---------- App ---------- */
-  const TABS = [['battle', '⚔ Batalha'], ['tank', '🛠 Tanque'], ['ammo', '🔩 Munição'], ['mat', '🧪 Materiais'], ['sim', '🎯 Simulação']];
+  const TABS = [['battle', '⚔ Batalha'], ['tank', '🛠 Veículo'], ['ammo', '🔩 Munição'], ['mat', '🧪 Materiais'], ['sim', '🎯 Simulação']];
   function App() {
     const s = Store.use(), host = React.useRef(null);
     React.useEffect(() => {

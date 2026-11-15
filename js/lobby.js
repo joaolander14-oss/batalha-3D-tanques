@@ -48,6 +48,12 @@
         specs.push({ eid: 'B' + (bi++), owner: hostPeer, team, name: '[BOT] ' + nm[(bi + i) % nm.length], tankId: id, tank: null, loadout: SB.defaultLoadout(def.stats), bot: true });
       }
     });
+    ['A', 'B'].forEach(team => {
+      for (let i = 0; i < (settings['heli' + team] || 0); i++) {
+        const h = SB.HELIS[Math.floor(Math.random() * SB.HELIS.length)], def = SB.buildHeli(h.id);
+        specs.push({ eid: 'B' + (bi++), owner: hostPeer, team, name: '[BOT] ' + h.name.split(' ')[0] + ' ' + nm[(bi + i) % nm.length], tankId: h.id, tank: null, loadout: SB.defaultLoadout(def.stats), bot: true });
+      }
+    });
     return specs;
   };
   L.startSolo = function (info, settings) {

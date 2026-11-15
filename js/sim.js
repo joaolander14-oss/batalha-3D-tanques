@@ -234,6 +234,13 @@
   }
 
   /* ============ VOO DO PROJÉTIL ============ */
+  /* metralha / flechetes / estilhaços de granada: nuvem de pelotas a partir do ponto de impacto */
+  function pelotas(ctx, S, pos, d) {
+    const N = S.A.pellets; if (!N) return;
+    const n = Math.min(N, 140), mass = Math.max(0.0005, (S.A.fillMass || 0.5) / n);
+    for (let i = 0; i < n; i++) traceFrag(ctx, pos, randCone(ctx, d, 12), mass * (0.6 + 0.8 * ctx.rnd()), 380 + ctx.rnd() * 300, null);
+    ctx.log.push({ k: 'info', t: 'Nuvem de ' + N + ' pelotas/flechetes (simulando ' + n + ').' });
+  }
   function ricProb(S, th, Tn, w) {
     const r = S.A.ric; let pr = clamp((th - (r[0] + w.mat.ric)) / Math.max(1, (r[1] - r[0])), 0, 1);
     const ratio = S.dmm / Math.max(Tn, 0.1);
@@ -299,9 +306,11 @@
         if (S.fam === 'he') {
           const cost = isArmor ? Tn * mat.ke : 0;
           if (isArmor && cost < S.A.penHE) { log('HE perfurou a chapa fina (' + Tn.toFixed(0) + ' mm < ' + S.A.penHE.toFixed(0) + ' mm): explosão do lado interno.', 'good'); ctx.outcome = 'perfurou'; w.flags.pen = true;
-            explode(ctx, o.clone().addScaledVector(d, ev.t1 + 0.01), S.A.tnt, S.A.caseMass, axis, S.v * 0.3, 'HE explodiu dentro do casco', false);
+            explode(ctx, o.clone().addScaledVector(d, ev.t1 + 0.01), S.A.tnt * (S.A.blast || 1) * (S.A.tb || 1) * 1.4, S.A.caseMass * (S.A.frag || 1), axis, S.v * 0.3, 'HE explodiu dentro do casco', false);
+            pelotas(ctx, S, o.clone().addScaledVector(d, ev.t1 + 0.01), d);
           } else {
-            explode(ctx, entryPos.clone().addScaledVector(ev.n0, 0.01), S.A.tnt, S.A.caseMass, axis, S.v * 0.3, 'HE explodiu na superfície', false);
+            explode(ctx, entryPos.clone().addScaledVector(ev.n0, 0.01), S.A.tnt * (S.A.blast || 1) * (S.A.tb || 1), S.A.caseMass * (S.A.frag || 1), axis, S.v * 0.3, 'HE explodiu na superfície', false);
+            pelotas(ctx, S, entryPos.clone().addScaledVector(d, 0.2), d);
             ctx.outcome = ctx.outcome || 'naopen';
           }
         } else {
@@ -326,8 +335,8 @@
           log('HEAT detonou ao contato com "' + p.name + '" (' + th.toFixed(0) + '°), ogiva a ' + (S.A.stand).toFixed(0) + ' mm do liner.', 'info');
           ctx.blasts.push({ pos: entryPos.clone(), tnt: S.A.tnt }); blast(ctx, entryPos.clone().addScaledVector(ev.n0 || d, 0.02), S.A.tnt * 0.6);
         }
-        const sc = (S.A.stand / 1000 + (tin - S.tDet)) / (S.A.liner ? S.A.liner.D / 1000 : 0.1);
-        if (mat.era > 0 && !S.eraHit) { S.eraHit = true; S.eraMult *= (1 - mat.era); log('ERA "' + p.name + '" detonou e cortou o jato em ' + (mat.era * 100).toFixed(0) + '%.', 'warn'); }
+        const sc = S.A.efp ? 5 : (S.A.stand / 1000 + (tin - S.tDet)) / (S.A.liner ? S.A.liner.D / 1000 : 0.1);
+        if (mat.era > 0 && !S.eraHit) { S.eraHit = true; if (S.A.tandem) log('ERA "' + p.name + '" foi detonada pelo precursor da carga dupla: o jato principal passou limpo.', 'good'); else { S.eraMult *= (1 - mat.era * (S.A.efp ? 0.5 : 1)); log('ERA "' + p.name + '" detonou e cortou o jato em ' + (mat.era * (S.A.efp ? 0.5 : 1) * 100).toFixed(0) + '%.', 'warn'); } }
         const Pnow = S.P0 * standF(sc) * S.eraMult - S.cons;
         if (Pnow <= 0.5) { log('Jato esgotado antes de "' + p.name + '".', 'warn'); endAt(tin, 'stop'); ctx.outcome = ctx.outcome || 'naopen'; return; }
         const cost = chord * 1000 * mat.heat;
@@ -349,6 +358,7 @@
           w.flags.pen = true; ctx.outcome = 'perfurou';
           log('Jato perfurou "' + p.name + '": ' + cost.toFixed(0) + ' mm eq. consumidos, restam ~' + (Pnow - cost).toFixed(0) + ' mm.', 'good');
           spall(ctx, o.clone().addScaledVector(d, ev.t1), d, w, Tn, S.A.liner.D * 0.25, 1500, 18, 1.0);
+          if (S.A.mp && !S.mpDone) { S.mpDone = true; explode(ctx, o.clone().addScaledVector(d, ev.t1 + 0.15), S.A.tnt * 0.7, S.A.caseMass * 0.5, d, 0, 'Ogiva multiuso detonou dentro', false); }
         }
         continue;
       }
@@ -502,6 +512,17 @@
     prepare,
     /* menor t de entrada no tanque (ou null) – usado pela batalha para detectar o impacto barato */
     probe(W, o, d) { let best = null; for (const w of W) for (const e of rayPart(w, o, d)) { if (best === null || Math.max(e.t0, 0) < best) best = Math.max(e.t0, 0); } return best; },
+    /* detonação aérea (HE-TF / VT / ABM, mísseis de proximidade, AAM): sopro + fragmentos a partir de um ponto no ar */
+    burst(tank, A, pos, axis, opts) {
+      opts = opts || {};
+      const ctx = { W: prepare(tank, opts.prior), rnd: SB.rnd(opts.seed || 7), path: [], frags: [], blasts: [], log: [], nfrag: 0, first: { pos: pos.clone(), part: { name: 'ar' }, theta: 0, tn: 0 }, outcome: 'perfurou', ricochets: 0, ammoDet: false, fire: false };
+      explode(ctx, pos, A.tnt * (A.blast || 1) * (A.tb || 1), A.caseMass * (A.frag || 1), axis || new V3(0, -1, 0), 0, 'Detonação no ar', false);
+      pelotas(ctx, { A }, pos, axis || new V3(0, -1, 0));
+      if (A.fireP > 0 && ctx.rnd() < A.fireP * 0.3) ctx.fire = true;
+      finalize(ctx, opts);
+      const parts = ctx.W.map(w => ({ id: w.p.id, name: w.p.name, kind: w.p.kind, sub: w.p.sub, hp: w.hp, acc: w.acc, state: w.p.kind === 'armor' ? 'intact' : stateOf(w), frag: w.frag, E: w.E, blast: w.blast, jet: false, fire: !!w.flags.fire, det: !!w.flags.det }));
+      return { ctx, parts, path: ctx.path, frags: ctx.frags, blasts: ctx.blasts, log: ctx.log, outcome: 'perfurou', first: ctx.first, verdict: ctx.verdict, endPos: pos, endType: 'boom', v: 0, S: {} };
+    },
     run(tank, A, shot, opts) {
       opts = opts || {};
       const T = SB.TYPE[A.type];
@@ -509,8 +530,8 @@
       const d = shot.dir.clone().normalize(), o = shot.origin.clone();
       const v = shot.v || SB.velAt(A, shot.dist || 0);
       const S = { fam: T.fam, A, v, m: A.mass, dmm: Math.max(A.d, 1), armed: false, timeLeft: null, dead: false };
-      if (T.fam === 'shot') { S.P = SB.Kc * A.kT * Math.sqrt(A.mass) * Math.pow(v, 1.43) / Math.pow(S.dmm, 1.07); S.fuse = A.tnt > 0.005; }
-      else if (T.fam === 'rod' && A.core) { S.L = A.core.L / 1000; S.m = A.core.mass; }
+      if (T.fam === 'shot') { S.P = (A.pk || 1) * SB.Kc * A.kT * Math.sqrt(A.mass) * Math.pow(v, 1.43) / Math.pow(S.dmm, 1.07); S.fuse = A.tnt > 0.005 && !A.inert; }
+      else if (T.fam === 'rod' && A.core) { S.L = A.core.L / 1000 * (A.pk || 1); S.m = A.core.mass; }
       else if (T.fam === 'heat') { S.P0 = A.heatP0 || 1; S.P = S.P0; S.cons = 0; S.eraMult = 1; S.det = false; }
       if (T.fam === 'rod' && !A.core) { ctx.log.push({ k: 'bad', t: 'Munição sem núcleo.' }); }
       ctx.log.push({ k: 'info', t: A.type + ': v=' + v.toFixed(0) + ' m/s a ' + (shot.dist || 0) + ' m, massa ' + (S.m).toFixed(2) + ' kg' + (S.P ? ', penetração nominal ' + S.P.toFixed(0) + ' mm RHA' : '') + (S.P0 ? ', jato ' + S.P0.toFixed(0) + ' mm RHA' : '') + (S.L ? ', haste ' + (S.L * 1000).toFixed(0) + ' mm' : '') });
@@ -518,6 +539,7 @@
       if (!ctx.outcome) ctx.outcome = ctx.first ? (ctx.ricochets ? 'ricochet' : 'naopen') : 'miss';
       if (!ctx.first) { ctx.outcome = 'miss'; ctx.log.push({ k: 'warn', t: 'O tiro não atingiu o tanque.' }); }
       if (ctx.first) ctx.log.splice(1, 0, { k: 'info', t: 'Primeiro contato: "' + ctx.first.part.name + '" a ' + ctx.first.theta.toFixed(0) + '° da normal, espessura local ' + ctx.first.tn.toFixed(0) + ' mm.' });
+      if (ctx.first && A.fireP > 0) { const perf = ctx.outcome === 'perfurou'; if (ctx.rnd() < (perf ? A.fireP : A.fireP * 0.25)) { ctx.fire = true; ctx.log.push({ k: 'bad', t: 'Efeito incendiário: o impacto causou fogo.' }); } }
       finalize(ctx, opts);
       const parts = ctx.W.map(w => ({ id: w.p.id, name: w.p.name, kind: w.p.kind, sub: w.p.sub, hp: w.hp, acc: w.acc, state: w.p.kind === 'armor' ? (w.flags.pen ? 'pen' : 'intact') : stateOf(w), frag: w.frag, E: w.E, blast: w.blast, jet: !!w.flags.jet, fire: !!w.flags.fire, det: !!w.flags.det }));
       return { ctx, parts, path: ctx.path, frags: ctx.frags, blasts: ctx.blasts, log: ctx.log, outcome: ctx.outcome, first: ctx.first, verdict: ctx.verdict, endPos: ctx.endPos, endType: ctx.endType, v, S };
