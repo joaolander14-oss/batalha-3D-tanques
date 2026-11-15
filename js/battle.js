@@ -152,8 +152,9 @@
     const camera = new THREE.PerspectiveCamera(60, 1, 0.3, 3500);
     scene.add(new THREE.HemisphereLight(0xdde8ff, 0x555544, 0.9)); const sun = new THREE.DirectionalLight(0xfff0d8, 0.9); sun.position.set(300, 500, 200); scene.add(sun);
     scene.add(SB.buildMapMesh(map));
-    SB.FX.init(scene);
+    SB.FX.init(scene); SB.FX.listener = camera.position;
     B = {
+      shakeMul: (function () { try { const v = parseFloat(localStorage.getItem('sb.shake')); return isFinite(v) ? v : 1; } catch (e) { return 1; } })(),
       myPeer: cfg.myPeer, cfg, map, el, renderer, scene, camera, ents: new Map(), shells: [], keys: {}, camYaw: 0, camPitch: 0.05, dist: 15, scope: false, zoom: 12, last: performance.now(), run: true, score: { A: 0, B: 0 },
       feed: [], msgT: 0, hudT: 0, netT: 0, shake: 0, lock: false, over: false, t: 0, me: null, tracers: new THREE.Group(), smokes: [], flares: [], aimPt: null, names: [], aimR: 500, fovBase: 60, bots: [], paused: false,
     };
@@ -197,7 +198,7 @@
  <canvas id="mini" width="170" height="170"></canvas>
  <div id="names"></div>
  <div id="score" style="display:none"></div>
- <div id="pause" style="display:none"><h2>Pausa</h2><button id="bres">Continuar</button><button id="bexit">Sair da batalha</button></div>
+ <div id="pause" style="display:none"><h2>Pausa</h2><button id="bres">Continuar</button><button id="bshake"></button><button id="bsound"></button><button id="bexit">Sair da batalha</button></div>
  <div id="endb" style="display:none"></div>
  <div id="help">(helicóptero: Espaço sobe, Shift desce) WASD mover · Mouse mirar · Clique atirar · Botão dir. mira · 1-4 munição · X raio-X · F extintor · C câmera · Tab placar · Esc pausa</div>
 </div>`;
@@ -224,6 +225,10 @@
     addEventListener('keydown', H.kd); addEventListener('keyup', H.ku); addEventListener('mousemove', H.mm); addEventListener('mousedown', H.md); addEventListener('mouseup', H.mu);
     addEventListener('wheel', H.wh, { passive: true }); addEventListener('resize', H.rs); addEventListener('contextmenu', H.cm); document.addEventListener('pointerlockchange', H.pl);
     $('bres').onclick = () => { B.paused = false; $('pause').style.display = 'none'; B.renderer.domElement.requestPointerLock && B.renderer.domElement.requestPointerLock(); };
+    const lab = () => { $('bshake').textContent = 'Tremor da tela: ' + (B.shakeMul >= 1 ? 'normal' : B.shakeMul > 0 ? 'reduzido' : 'desligado'); $('bsound').textContent = 'Som: ' + (SB.FX.mute ? 'desligado' : 'ligado'); };
+    $('bshake').onclick = () => { B.shakeMul = B.shakeMul >= 1 ? 0.35 : B.shakeMul > 0 ? 0 : 1; B.shake = 0; try { localStorage.setItem('sb.shake', String(B.shakeMul)); } catch (e) { } lab(); };
+    $('bsound').onclick = () => { SB.FX.mute = !SB.FX.mute; lab(); };
+    lab();
     $('bexit').onclick = () => { if (SB.Net.mode === 'host') SB.Net.send({ t: 'abort' }); stop(); };
   }
   function unbind() { removeEventListener('keydown', H.kd); removeEventListener('keyup', H.ku); removeEventListener('mousemove', H.mm); removeEventListener('mousedown', H.md); removeEventListener('mouseup', H.mu); removeEventListener('wheel', H.wh); removeEventListener('resize', H.rs); removeEventListener('contextmenu', H.cm); document.removeEventListener('pointerlockchange', H.pl); }
@@ -328,7 +333,7 @@
     if (A.burst === 'time' || A.burst === 'abm' || A.burst === 'cluster') { const tgR = e === B.me ? B.aimR : (e.ai && e.ai.tg ? Math.hypot(e.ai.tg.x - e.x, e.ai.tg.z - e.z) : 600); ex.ba = Math.max(40, tgR - 3); }
     spawnShell(e.eid, e.sel, A, p, d.clone().multiplyScalar(v0), ex);
     if (!(e.st.rof || (e.isHeli && wc === 'gun')) || ((e.nf = (e.nf || 0) + 1) % 4 === 0)) SB.FX.muzzle(p, d, wc === 'gun' ? Math.min(1.5, e.st.cal / 120) : 0.8);
-    if (!e.isHeli && !e.st.rof) { e.v -= 0.2 * Math.sign(e.v || 1); if (e === B.me) B.shake = Math.max(B.shake, 0.25); } else if (e === B.me) B.shake = Math.max(B.shake, wc === 'gun' ? 0.08 : 0.2);
+    if (!e.isHeli && !e.st.rof) { e.v -= 0.2 * Math.sign(e.v || 1); if (e === B.me) addShake(0.14); } else if (e === B.me) addShake(wc === 'gun' ? 0.015 : 0.06);
     SB.Net.send({ t: 'f', e: e.eid, a: e.sel, p: [p.x, p.y, p.z], v: [d.x * v0, d.y * v0, d.z * v0], id: ex.id, lk: ex.lock || null, ba: ex.ba || 0 });
     return true;
   }
@@ -356,6 +361,11 @@
     if (ang <= maxA || ang < 1e-5) return want;
     return dir.clone().lerp(want, maxA / ang).normalize();
   }
+  function addShake(a, pos) {
+    const mul = B.shakeMul == null ? 1 : B.shakeMul; if (!mul) return;
+    let f = 1; if (pos) f = Math.max(0, 1 - B.camera.position.distanceTo(pos) / 180);
+    B.shake = Math.min(0.45, Math.max(B.shake, a * f * mul));
+  }
   function stepShells(dt) {
     for (let i = B.shells.length - 1; i >= 0; i--) {
       const s = B.shells[i], A = s.A, powered = s.rocket || s.guid, v = s.vel.length();
@@ -366,7 +376,7 @@
         if (s.rocket && !s.guid) { dir.y -= G * 0.12 * dt / Math.max(tgt, 50); dir.normalize(); }
         if (s.guid) dir = guideDir(s, dir, dt);
         s.vel.copy(dir.multiplyScalar(tgt));
-        s.trail -= dt; if (s.trail <= 0) { s.trail = 0.06; SB.FX.smoke(s.pos.clone(), 1, false); }
+        s.trail -= dt; if (s.trail <= 0) { s.trail = 0.15; if (B.camera.position.distanceTo(s.pos) < 700) SB.FX.smoke(s.pos.clone(), 1, false); }
       } else { s.vel.multiplyScalar(Math.exp(-A.k * v * dt)); s.vel.y -= G * dt; }
       const p0 = s.pos, d = s.vel.clone(), sp = d.length(); d.multiplyScalar(1 / sp); const len = sp * dt;
       s.dist += len;
@@ -446,7 +456,7 @@
     const boom = T.fam === 'he' || T.fam === 'hesh' || T.fam === 'heat' || A.sub || A.tb > 1 || A.blast > 1;
     if (A.smoke || A.illum) { smokeAt(p, A); if (!A.fireP) return; }
     if (boom) { SB.FX.explosion(p, 0.5 + Math.cbrt(Math.max(A.tnt, 0.02)) * (A.blast || 1) * 0.8); if (A.sub) clusterAt(s, p); else explodeAround(s, p.clone().add(new V3(0, 0.7, 0)), A); } else SB.FX.dust(p, 8);
-    if (near) B.shake = Math.max(B.shake, 0.1 + (A.tnt > 5 ? 0.4 : 0));
+    if (near) addShake(0.1 + (A.tnt > 5 ? 0.3 : 0), p);
   }
 
   function hitTank(s, ent, p0, d, sp) {
@@ -455,7 +465,7 @@
     if (A.smoke || A.illum) { smokeAt(p0.clone(), A); if (!A.fireP) return; }
     if (A.sub) { SB.FX.explosion(p0, 0.8); clusterAt(s, p0.clone().add(new V3(0, 3, 0))); return; }
     if (ent.owner === B.myPeer) hitTankSim(s, ent, p0, d, sp, A);
-    else SB.FX.clank();
+    else SB.FX.clank(p0);
   }
   function hitTankSim(s, ent, p0, d, sp, A) {
     if (!ent.alive) return;
@@ -477,7 +487,8 @@
     const pa = res.path.slice(0, 40).map(p => [r2(p.a.x), r2(p.a.y), r2(p.a.z), r2(p.b.x), r2(p.b.y), r2(p.b.z), TY[p.type] != null ? TY[p.type] : 1]);
     const fr = res.frags.slice(0, 110).map(f => [r2(f.a.x), r2(f.a.y), r2(f.a.z), r2(f.b.x), r2(f.b.y), r2(f.b.z), r2(f.e), f.hit ? 1 : 0]);
     const pn = res.parts.filter(p => p.state === 'pen').map(p => p.id);
-    const m = { pa, fr, pn, t: 'd', e: ent.eid, by: byEid, dm: changed, o: res.outcome, dead: destroyed, det: !!det, fire: !!fire, hp: [hp.x, hp.y, hp.z], txt: [], bl: res.blasts.map(b => [b.pos.x, b.pos.y, b.pos.z, b.tnt]) };
+    const nowT = performance.now(), full = !ent.lastRp || nowT - ent.lastRp > 2200; if (full) ent.lastRp = nowT;
+    const m = { pa: full ? pa : [], fr: full ? fr : [], pn: full ? pn : [], t: 'd', e: ent.eid, by: byEid, dm: changed, o: res.outcome, dead: destroyed, det: !!det, fire: !!fire, hp: [hp.x, hp.y, hp.z], txt: [], bl: res.blasts.slice(0, 3).map(b => [b.pos.x, b.pos.y, b.pos.z, b.tnt]) };
     SB.Net.send(m); showHit(m, true);
     if (fire && !ent.burning && ent.alive) { ent.burning = true; ent.burn = 0; }
     if (destroyed) killEnt(ent, byEid, det);
@@ -490,7 +501,7 @@
     const hp = new V3(...m.hp);
     SB.FX.sparks(hp, 10); if (m.o === 'perfurou') { SB.FX.smoke(hp, 3, true); } if (m.o === 'ricochet') SB.FX.sparks(hp, 14);
     (m.bl || []).forEach(b => SB.FX.explosion(new V3(b[0], b[1], b[2]), 0.4 + Math.cbrt(b[3]) * 0.7));
-    if (by === B.me || ent === B.me) { startReplay(ent, m); if (ent === B.me) B.shake = Math.max(B.shake, 0.5); }
+    if (by === B.me || ent === B.me) { if (!B.rp || performance.now() - B.rp.t0 > 2200) startReplay(ent, m); if (ent === B.me) addShake(0.25); }
     if (!mine && m.dead && ent.alive) killEnt(ent, m.by, m.det, true);
   }
   function killEnt(ent, byEid, det, remote) {
@@ -618,7 +629,7 @@
     for (let sub = 0; sub < 2; sub++) stepShells(dt / 2);
     for (let i = B.smokes.length - 1; i >= 0; i--) { const sm = B.smokes[i]; sm.t -= dt; if (sm.t <= 0) { B.smokes.splice(i, 1); continue; } if (Math.random() < dt * 12) SB.FX.smoke(sm.p.clone().add(new V3((Math.random() - 0.5) * sm.r, Math.random() * 4, (Math.random() - 0.5) * sm.r)), 1, false); }
     for (let i = B.flares.length - 1; i >= 0; i--) { const f = B.flares[i]; f.t -= dt; f.L.position.y -= 2 * dt; if (f.t <= 0) { B.scene.remove(f.L); B.flares.splice(i, 1); } }
-    SB.FX.update(dt); B.shake = Math.max(0, B.shake - dt * 1.5);
+    SB.FX.update(dt); B.shake = Math.max(0, B.shake - dt * 4);
     B.netT -= dt; if (B.netT <= 0) { B.netT = 0.07; netState(); }
     if (B.cfg.mode !== 'client' && B.t > B.cfg.timeLimit) endMatch(B.score.A >= B.score.B ? (B.score.A === B.score.B ? 'T' : 'A') : 'B');
   }
@@ -629,7 +640,7 @@
       if (!e.alive && e.crash) {
         const c = e.crash; c.vy -= 14 * dt; e.y += c.vy * dt; e.yaw += c.spin * dt; e.x += -Math.sin(e.yaw) * e.v * dt * 0.5; e.z += -Math.cos(e.yaw) * e.v * dt * 0.5; e.pitch += 0.6 * dt; e.roll += c.spin * 0.2 * dt;
         SB.FX.fire(new V3(e.x, e.y + 1, e.z), 1); SB.FX.smoke(new V3(e.x, e.y + 1, e.z), 1, true);
-        const gh = B.map.H(e.x, e.z); if (e.y <= gh + 0.8) { e.y = gh + 0.8; e.crash = null; e.v = 0; SB.FX.explosion(new V3(e.x, e.y + 1, e.z), 2.2); if (e.owner !== undefined) B.shake = Math.max(B.shake, 0.3); }
+        const gh = B.map.H(e.x, e.z); if (e.y <= gh + 0.8) { e.y = gh + 0.8; e.crash = null; e.v = 0; SB.FX.explosion(new V3(e.x, e.y + 1, e.z), 2.2); addShake(0.25, new V3(e.x, e.y, e.z)); }
         poseEnt(e, 1);
       }
     }
@@ -779,7 +790,7 @@
   }
   function render(dt) {
     const me = B.me, cam = B.camera, d = camDir(), o = camOrigin(d);
-    cam.position.copy(o); if (B.shake > 0) { cam.position.x += (Math.random() - 0.5) * B.shake; cam.position.y += (Math.random() - 0.5) * B.shake; }
+    cam.position.copy(o); if (B.shake > 0.005) { cam.position.x += (Math.random() - 0.5) * B.shake * 0.5; cam.position.y += (Math.random() - 0.5) * B.shake * 0.5; }
     cam.lookAt(o.clone().add(d)); const fov = B.scope ? B.zoom : 60; if (Math.abs(cam.fov - fov) > 0.05) { cam.fov += (fov - cam.fov) * Math.min(1, dt * 12); cam.updateProjectionMatrix(); }
     me.G.visible = !B.scope || !me.alive;
     B.renderer.render(B.scene, cam);
