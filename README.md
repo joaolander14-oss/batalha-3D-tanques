@@ -2,7 +2,7 @@
 
 Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo War Thunder.
 
-- 150 veículos terrestres: 100 tanques (2ª Guerra, Guerra Fria e modernos), 31 IFV/APC/blindados leves (Bradley, CV90, Puma, BMP, M113…), 19 antiaéreos (Gepard, Shilka, Tunguska, Tor…) e 10 helicópteros de ataque, com garagem para criar os seus
+- 200 veículos terrestres (100 tanques, 40 IFV/APC/leves, 19 autopropulsados e caças-tanques, 41 antiaéreos de canhão e de míssil) e 50 helicópteros, com garagem para criar os seus
 - As 61 munições do PDF "Munições de Tanque" (AP … APFSDS, HE, HEAT, ATGM guiados, foguetes, antipessoal, especiais, treino) + munições de helicóptero (canhão, foguetes, Hellfire/Ataka/Spike…, ar-ar)
 - Mísseis guiados (segue a mira, trava no alvo, ataque por cima, sobrevoo/EFP, infravermelho) e foguetes que voam retos
 - Editor 3D de veículo (tanque ou helicóptero), de munição (desenho do projétil/míssil/foguete) e de materiais

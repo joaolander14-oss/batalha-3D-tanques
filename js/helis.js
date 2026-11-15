@@ -26,7 +26,7 @@
     const P = [], D = [];
     const add = a => (Array.isArray(a) ? a : [a]).forEach(x => P.push(x));
     const Lf = c.Lf, Wf = c.Wf || 1.1, Hf = c.Hf || 1.3, R = c.R, F = 0.6;                // F = altura do piso
-    const zn = -0.42 * Lf, zf = zn + Math.min(1.1, Lf * 0.07), zr = 0.1 * Lf, zm = -0.04 * Lf;
+    const zn = -0.42 * Lf, zf = zn + Math.min(1.1, Lf * 0.07), zr = (c.cabinEnd != null ? c.cabinEnd : 0.1) * Lf, zm = c.tandemRot ? zn + 0.22 * Lf : -0.04 * Lf, zmR = zn + 0.82 * Lf;
     const Lc = zr - zf, zc = (zf + zr) / 2, top = F + Hf, mastTop = top + 0.55;
     const skin = c.skin || L('al', 4), arm = c.armor || L('hha', 12);
     /* fuselagem (cabine) */
@@ -42,7 +42,7 @@
     add(stack('Blindagem lateral D', [Wf / 2 - 0.1, F + Hf * 0.5, cz + cl / 2], [0, 0, -90], 0.8, cl, arm));
     add(stack('Blindagem do piso', [0, F + 0.06, cz + cl / 2], [180, 0, 0], Wf - 0.3, cl, arm));
     /* cauda */
-    const Lt = 0.48 * Lf, Dt = Math.max(0.35, Lf * 0.032), ty = top - 0.25;
+    const Lt = (c.tail != null ? c.tail : 0.48) * Lf, Dt = Math.max(0.35, Lf * 0.032), ty = top - 0.25;
     P.push(mk('Viga de cauda', 'tube', [0, ty, zr + Lt / 2], [Dt, Lt, Dt], [90, 0, 0], 'al', { wall: 0.004 }));
     add(stack('Deriva vertical', [0, ty + 0.55, zr + Lt - 0.4], [0, 0, -90], 1.2, 0.9, L('al', 3)));
     add(stack('Estabilizador', [0, ty + 0.1, zr + Lt - 0.6], [0, 0, 0], Math.min(2.6, Lf * 0.17), 0.5, L('al', 3)));
@@ -59,7 +59,12 @@
     P.push(mod('Cubo do rotor', 'rotor', [0, mastTop, zm], [0.45, 0.28, 0.45], null, null, 'rotor'));
     P.push(mod('Pá do rotor A', 'rotor', [0, mastTop + 0.02, zm], [2 * R, 0.035, 0.32], [0, 0, 0], null, 'rotor'));
     P.push(mod('Pá do rotor B', 'rotor', [0, mastTop + 0.02, zm], [2 * R, 0.035, 0.32], [0, 90, 0], null, 'rotor'));
-    if (c.coax) {
+    if (c.tandemRot) {
+      const my = mastTop + 0.9;
+      P.push(mod('Cubo do rotor traseiro', 'rotor', [0, my, zmR], [0.45, 0.28, 0.45], null, null, 'rotor2'));
+      P.push(mod('Pá traseira A', 'rotor', [0, my + 0.02, zmR], [2 * R, 0.035, 0.32], [0, 20, 0], null, 'rotor2'));
+      P.push(mod('Pá traseira B', 'rotor', [0, my + 0.02, zmR], [2 * R, 0.035, 0.32], [0, 110, 0], null, 'rotor2'));
+    } else if (c.coax) {
       P.push(mod('Cubo do rotor inferior', 'rotor', [0, mastTop - 0.55, zm], [0.45, 0.28, 0.45], null, null, 'rotor2'));
       P.push(mod('Pá inferior A', 'rotor', [0, mastTop - 0.53, zm], [2 * R, 0.035, 0.32], [0, 45, 0], null, 'rotor2'));
       P.push(mod('Pá inferior B', 'rotor', [0, mastTop - 0.53, zm], [2 * R, 0.035, 0.32], [0, 135, 0], null, 'rotor2'));
@@ -91,7 +96,8 @@
     d('box', [0, ty + 0.1, zr + Lt - 0.6], [Math.min(2.6, Lf * 0.17), 0.05, 0.5], null, 'body');                    // estabilizador
     [-1, 1].forEach(sg => ws > 0 && d('box', [sg * (Wf / 2 + ws / 2), F + Hf * 0.45, zc + 0.3], [ws, 0.08, 1.0], null, 'body')); // asas
     d('cyl', [0, mastTop + 0.02, zm], [2 * R, 0.012, 2 * R], null, 'disc', 'rotor');                                // disco do rotor
-    if (c.coax) d('cyl', [0, mastTop - 0.53, zm], [2 * R, 0.012, 2 * R], null, 'disc', 'rotor2');
+    if (c.tandemRot) d('cyl', [0, mastTop + 0.92, zmR], [2 * R, 0.012, 2 * R], null, 'disc', 'rotor2');
+    else if (c.coax) d('cyl', [0, mastTop - 0.53, zm], [2 * R, 0.012, 2 * R], null, 'disc', 'rotor2');
     else d('cyl', [0.2, ty + 0.45, zr + Lt], [Math.min(1.4, Lf * 0.09) * 2, 0.02, Math.min(1.4, Lf * 0.09) * 2], [0, 0, 90], 'disc', 'tail');
     d('cyl', [0, F + 0.15, zn + 0.2], [0.34, 0.32, 0.34], [0, 0, 0], 'dark');                                      // torreta de sensores
     d('cyl', [0, top + 0.28, zm], [0.28, 0.6, 0.28], null, 'metal');                                                 // mastro
@@ -104,6 +110,7 @@
     else { [-1, 1].forEach(sg => { d('cyl', [sg * (Wf / 2 + 0.05), 0.3, zc + 0.1], [0.5, 0.18, 0.5], [0, 0, 90], 'rubber'); }); d('cyl', [0, 0.25, zr + Lt * 0.9], [0.3, 0.1, 0.3], [0, 0, 90], 'rubber'); }
     d('cyl', [0, ty + 0.1, zr + Lt * 0.5], [Dt * 1.1, Lt, Dt * 1.1], [90, 0, 0], 'body');
     if (c.coax) { d('cyl', [0, mastTop - 0.1, zm], [0.5, 1.0, 0.5], null, 'metal'); d('box', [0, ty + 0.85, zr + Lt - 0.4], [0.05, 1.0, 0.8], null, 'body'); }
+    if (c.tandemRot) { d('cyl', [0, top + 0.9, zmR], [0.5, 1.8, 0.5], null, 'body'); d('box', [0, top + 0.3, zmR], [Wf * 0.9, 0.6, 1.6], null, 'body'); }
     if (c.radome !== false) d('cyl', [0, mastTop + 0.25, zm], [0.5, 0.22, 0.5], null, 'dark', 'rotor');             // radome / cubo
     d('cyl', [gx, gy, gz - bl * 0.5 - 0.2], [gd * 1.5, 0.3, gd * 1.5], [90, 0, 0], 'metal', 'gun');
     /* pontos de lançamento de foguetes e mísseis (pilones) */
@@ -111,7 +118,7 @@
     if (ws > 0) [-1, 1].forEach(sg => [0.55, 1.0].forEach(f => pylons.push([rd(sg * (Wf / 2 + ws * f), 4), rd(F + Hf * 0.5 - 0.3, 3), rd(zc - 0.2, 3)])));
     if (!pylons.length) pylons.push([-0.7, F, zf], [0.7, F, zf]);
     const st = Object.assign({ kind: 'heli', cal: c.cal, vk: 1.0, vmax: c.vmax, rev: 40, turn: 55, trav: c.fixed ? 20 : 110, elev: c.fixed ? [-4, 4] : [-60, 14], reload: 0, rack: c.rack || 800, mass: c.mass, fixedGun: !!c.fixed, climb: c.climb || 10, rotR: R,
-      rotPivot: [0, mastTop, zm], rot2Pivot: [0, mastTop - 0.55, zm], tailPivot: [0.18, ty + 0.45, zr + Lt], turPivot: [gx, gy, gz], gunPivot: [gx, gy, gz], muzzle: [gx, gy, gz - bl - 0.2], pylons, bodyLen: Lf, bodyWid: Wf + 2 * ws + 1 }, c.stats || {});
+      rotPivot: [0, mastTop, zm], rot2Pivot: c.tandemRot ? [0, mastTop + 0.9, zmR] : [0, mastTop - 0.55, zm], tailPivot: [0.18, ty + 0.45, zr + Lt], turPivot: [gx, gy, gz], gunPivot: [gx, gy, gz], muzzle: [gx, gy, gz - bl - 0.2], pylons, bodyLen: Lf, bodyWid: Wf + 2 * ws + 1 }, c.stats || {});
     return { name: c.name, nation: c.nation, paint: c.paint, parts: P, deco: D, stats: st };
   }
 

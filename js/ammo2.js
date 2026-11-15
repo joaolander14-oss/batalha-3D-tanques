@@ -134,6 +134,24 @@
     ['Mistral (ar-ar)', 'AAM', () => mkWar({ d: 90, L: 1800, Ln: 240, motor: 900, wh: 'he', wall: 2 }), 800, { tntKg: 1.0, fixedCal: true, slots: 44, rof: 0.5 }],
   ];
 
+  /* ---------- mísseis antiaéreos (SAM): só atingem aeronaves; guiagem infravermelho/radar ---------- */
+  const SAM = [
+    ['MIM-72 Chaparral (SAM)', () => mkWar({ d: 127, L: 2900, Ln: 300, motor: 1300, wh: 'he', wall: 3 }), 800, { tntKg: 4.5, slots: 60, rof: 0.4, turn: 85, burn: 3 }],
+    ['9M38 Buk (SA-11, SAM)', () => mkWar({ d: 400, L: 5550, Ln: 800, motor: 2500, wh: 'he', wall: 6 }), 1100, { tntKg: 70, slots: 160, rof: 0.25, turn: 70, burn: 6 }],
+    ['3M9 Kub (SA-6, SAM)', () => mkWar({ d: 340, L: 5800, Ln: 700, motor: 2600, wh: 'he', wall: 6 }), 800, { tntKg: 59, slots: 150, rof: 0.25, turn: 60, burn: 6 }],
+    ['9M82 S-300V (SA-12, SAM)', () => mkWar({ d: 500, L: 9900, Ln: 1200, motor: 5000, wh: 'he', wall: 8 }), 1300, { tntKg: 150, slots: 350, rof: 0.2, turn: 55, burn: 9 }],
+    ['9M330 Tor (SA-15, SAM)', () => mkWar({ d: 235, L: 2900, Ln: 400, motor: 1300, wh: 'he', wall: 4 }), 850, { tntKg: 15, slots: 90, rof: 0.5, turn: 90, burn: 3.5 }],
+    ['9M311 Tunguska (SA-19, SAM)', () => mkWar({ d: 152, L: 2562, Ln: 350, motor: 1200, wh: 'he', wall: 3 }), 900, { tntKg: 9, slots: 60, rof: 0.5, turn: 85, burn: 3 }],
+    ['9M37 Strela-10 (SA-13, SAM)', () => mkWar({ d: 120, L: 2200, Ln: 300, motor: 1000, wh: 'he', wall: 2.5 }), 600, { tntKg: 3, slots: 45, rof: 0.5, turn: 80, burn: 2.5 }],
+    ['MIM-23 Hawk (SAM)', () => mkWar({ d: 360, L: 5030, Ln: 700, motor: 2300, wh: 'he', wall: 6 }), 800, { tntKg: 54, slots: 140, rof: 0.25, turn: 55, burn: 6 }],
+    ['Roland 3 (SAM)', () => mkWar({ d: 160, L: 2600, Ln: 350, motor: 1200, wh: 'he', wall: 3 }), 500, { tntKg: 6.5, slots: 60, rof: 0.5, turn: 80, burn: 3 }],
+    ['Rapier (SAM)', () => mkWar({ d: 133, L: 2240, Ln: 300, motor: 1000, wh: 'he', wall: 3 }), 650, { tntKg: 1.4, slots: 45, rof: 0.5, turn: 85, burn: 3 }],
+    ['Starstreak HVM (SAM)', () => mkWar({ d: 127, L: 1397, Ln: 200, motor: 700, wh: 'he', wall: 3 }), 1200, { tntKg: 0.5, slots: 40, rof: 0.7, turn: 95, burn: 1.8 }],
+    ['RBS 70 (SAM)', () => mkWar({ d: 106, L: 1320, Ln: 200, motor: 600, wh: 'he', wall: 2 }), 550, { tntKg: 0.5, slots: 40, rof: 0.6, turn: 80, burn: 2 }],
+    ['HQ-17 (SAM)', () => mkWar({ d: 235, L: 2900, Ln: 400, motor: 1300, wh: 'he', wall: 4 }), 850, { tntKg: 15, slots: 90, rof: 0.5, turn: 90, burn: 3.5 }],
+    ['QW-2 (SAM)', () => mkWar({ d: 71, L: 1550, Ln: 200, motor: 700, wh: 'he', wall: 2 }), 650, { tntKg: 1, slots: 40, rof: 0.6, turn: 80, burn: 2 }],
+    ['ADATS (SAM)', () => mkWar({ d: 152, L: 2050, Ln: 300, motor: 900, wh: 'he', wall: 3 }), 1100, { tntKg: 12, slots: 70, rof: 0.5, turn: 85, burn: 2.5 }],
+  ];
   const slug = s => 'p-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   function make(sym, name, layers, v0, ex, info) {
     const a = SB._b.ammo(name, sym, layers, v0, { builtin: true });
@@ -154,6 +172,7 @@
       out.push(make(c.s, nm, r[0], r[1], r[2], { s: c.s, y: c.y, m: c.m, fx: c.fx }));
     });
     HELI.forEach(h => { const r = h[2](); out.push(make(h[1], h[0], r, h[3], h[4], { s: h[1], heli: true })); });
+    SAM.forEach(h => { const r = h[1](); out.push(make('AAM', h[0], r, h[2], Object.assign({ fixedCal: true }, h[3]), { s: 'AAM', sam: true })); });
     return out;
   };
 })(window.SB);

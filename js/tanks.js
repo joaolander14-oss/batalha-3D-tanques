@@ -168,7 +168,7 @@
       for (let k = 1; k < nb; k++) { const ox = (k % 2 ? 1 : -1) * (0.2 + 0.18 * Math.floor((k + 1) / 2)), oy = k >= 3 ? 0.18 : 0; d('cyl', [ox, gy + oy, mantZ - bl / 2], [gd, bl, gd], [90, 0, 0], 'metal', 'gun'); }
       if (c.radar || c.aa === 'gepard' || c.aa === 'tung') { d('cyl', [0, ty + th / 2 + 0.72, tz + tr * 0.55], [0.95, 0.06, 0.95], [55, 0, 0], 'metal', tgp); d('cyl', [0, ty + th / 2 + 0.35, tz + tr * 0.55], [0.08, 0.7, 0.08], null, 'metal', tgp); }
       if (c.aa === 'gepard') d('sphere', [0, ty + th / 2 + 0.42, tz - tr * 0.45], [0.7, 0.5, 0.7], null, 'dark', tgp);
-      if (c.sam) { const nt = c.sam >= 8 ? 4 : c.sam >= 6 ? 3 : 2; [-1, 1].forEach(sg => { for (let k = 0; k < nt; k++) d('cyl', [sg * (tr * 0.95 + 0.05), ty + 0.2 + k * 0.22, tz - 0.3], [0.2, 1.6, 0.2], [-55, 0, 0], 'metal', tgp); }); }
+      if (c.sam) { const sd = c.samD || 0.2, sl = c.samLen || 1.6, nt = c.sam >= 8 ? 4 : c.sam >= 6 ? 3 : c.sam >= 3 ? 2 : 1; [-1, 1].forEach(sg => { for (let k = 0; k < nt; k++) d('cyl', [sg * (tr * 0.9 + sd * 0.8), ty + 0.2 + k * (sd * 1.15), tz - sl * 0.18], [sd, sl, sd], [-58, 0, 0], 'metal', tgp); }); }
     }
     /* escala uniforme (espessuras preservadas) */
     const s = c.s || 1;

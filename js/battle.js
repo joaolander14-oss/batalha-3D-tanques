@@ -11,18 +11,23 @@
   function defaultLoadout(stats) {
     const P = SB.ammoLib ? SB.ammoLib() : SB.AMMO_PRESETS(), pick = t => P.find(a => a.type === t && a.builtin) || P.find(a => a.type === t) || P[0];
     if (stats.kind === 'heli') {
-      const nm = (t) => P.find(a => a.name && a.name.indexOf(t) >= 0) || P[0];
-      const H = [{ ammo: nm('2A42 HE-FRAG'), n: 260 }, { ammo: nm('Hydra 70 M247'), n: 8 }, { ammo: nm('AGM-114K'), n: 4 }, { ammo: nm('Stinger'), n: 2 }];
-      let used = 0; return H.map(h => { const sl = h.ammo.slots || 1, mx = Math.floor(Math.max(0, stats.rack - used) / sl), n = Math.min(h.n, mx); used += n * sl; return { ammo: h.ammo, n }; });
+      const nm = (t) => P.find(a => a.name && a.name.indexOf(t) >= 0) || P[0], allow = stats.wp || 'grma', c = stats.cal;
+      const gun = c >= 28 ? nm(c >= 38 ? '30×165 mm 2A42 HE-FRAG-T' : '30×165 mm 2A42 HE-FRAG-T') : c >= 20 ? nm('20×102') : nm('12,7×99');
+      const out = []; let used = 0; const add = (a, n) => { if (!a || n <= 0) return; const sl = a.slots || 1, k = Math.min(n, Math.floor(Math.max(0, stats.rack - used) / sl)); if (k > 0) { out.push({ ammo: a, n: k }); used += k * sl; } };
+      if (allow.indexOf('g') >= 0) add(gun, Math.min(500, Math.round(stats.rack * 0.35)));
+      if (allow.indexOf('r') >= 0) add(nm(stats.rock || 'Hydra 70 M247'), Math.max(2, Math.floor(stats.rack * 0.25 / 8)));
+      if (allow.indexOf('m') >= 0) add(nm(stats.atgmName || 'AGM-114K'), Math.max(1, Math.floor(stats.rack * 0.25 / 40)));
+      if (allow.indexOf('a') >= 0) add(nm(stats.aamName || 'Stinger'), 2);
+      return out;
     }
     if (stats.rof) {
       const nm = t => P.find(a => a.name && a.name.indexOf(t) >= 0) || P[0], c = stats.cal; let g1, g2;
       if (c <= 14.6) g1 = nm('12,7×99'); else if (c <= 26) { g1 = nm('20×102'); g2 = nm('20 mm M53'); } else if (c <= 45) { g1 = nm('30×165 mm 2A42 HE-FRAG-T'); g2 = nm('30×165 mm 2A42 AP-T'); }
       else { g1 = P.find(a => a.type === 'HE-FRAG' && a.builtin && !(a.info && a.info.heli)) || P[0]; g2 = P.find(a => a.type === 'APHE' && a.builtin) || P[0]; }
       const out = []; let used = 0; const add = (a, n) => { if (!a || n <= 0) return; const sl = a.slots || 1, k = Math.min(n, Math.floor(Math.max(0, stats.rack - used) / sl)); if (k > 0) { out.push({ ammo: a, n: k }); used += k * sl; } };
-      const gunUnits = Math.max(10, stats.rack - (stats.sam || 0) * 40 - (stats.atgm || 0) * 36);
+      const samA = stats.sam ? nm(stats.samName || 'Stinger') : null, gunUnits = Math.max(10, stats.rack - (stats.sam || 0) * (samA ? samA.slots || 40 : 40) - (stats.atgm || 0) * 36);
       add(g1, Math.round(gunUnits * (g2 ? 0.65 : 1))); if (g2) add(g2, Math.round(gunUnits * 0.35));
-      if (stats.atgm) add(nm('9M114'), stats.atgm); if (stats.sam) add(nm('Stinger'), stats.sam);
+      if (stats.atgm) add(nm(stats.atgmName || '9M114'), stats.atgm); if (stats.sam) add(samA, stats.sam);
       return out;
     }
     const main = stats.cal >= 105 ? 'APFSDS' : stats.cal >= 85 ? 'APCBC' : 'APCBC';

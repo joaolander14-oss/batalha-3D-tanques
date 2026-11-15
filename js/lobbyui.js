@@ -64,7 +64,7 @@
   /* seletor de munição agrupado por classe (PDF) */
   function AmmoSel({ v, on, ammos }) {
     const groups = {};
-    ammos.forEach(a => { const g = !a.builtin ? '★ Minhas munições' : (a.info && a.info.heli ? '🚁 Helicóptero (canhão / foguete / míssil / ar-ar)' : (SB.CLS_NAMES[(SB.TYPE[a.type] || {}).cls] || 'Outras')); (groups[g] = groups[g] || []).push(a); });
+    ammos.forEach(a => { const g = !a.builtin ? '★ Minhas munições' : (a.info && a.info.sam ? '🛰 Míssil antiaéreo (SAM)' : a.info && a.info.heli ? '🚁 Helicóptero (canhão / foguete / míssil / ar-ar)' : (SB.CLS_NAMES[(SB.TYPE[a.type] || {}).cls] || 'Outras')); (groups[g] = groups[g] || []).push(a); });
     return h('select', { value: v, onChange: e => on(e.target.value) }, Object.keys(groups).map(g => h('optgroup', { key: g, label: g }, groups[g].map(a => h('option', { key: a.id, value: a.id }, a.name)))));
   }
   SB.BattlePanel = function BattlePanel() {
@@ -73,6 +73,7 @@
     const used = L.loadout.reduce((a, r) => a + r.n * slotsOf(r.aid), 0);
     const setRow = (i, k, v) => setLobby({ loadout: L.loadout.map((r, j) => j === i ? { ...r, [k]: v } : r) });
     const maxFor = i => { const others = L.loadout.reduce((a, r, j) => a + (j === i ? 0 : r.n * slotsOf(r.aid)), 0); return Math.max(0, Math.floor((rack - others) / slotsOf(L.loadout[i].aid))); };
+    const cnt = k => tanks.filter(t => (t.cat || t.kind) === k).length;
     const nations = ['Todas', ...Array.from(new Set(tanks.map(t => t.nation)))];
     const list = tanks.filter(t => (!L.nation || L.nation === 'Todas' || t.nation === L.nation) && (!L.kind || L.kind === 'all' || (t.cat || t.kind) === L.kind));
     const net = SB.Net.status, players = SB.Lobby.players, online = L.mode !== 'solo', hosting = SB.Net.mode === 'host', joined = SB.Net.mode === 'client';
@@ -89,7 +90,7 @@
         Row('Seu nome', h('input', { value: L.name, onChange: e => setLobby({ name: e.target.value }) })),
         Row('Modo', h(Sel, { v: L.mode, on: v => { if (v === 'solo') SB.Lobby.leave(); setLobby({ mode: v }); }, opts: [['solo', 'Solo contra bots'], ['host', 'Online: criar sala'], ['join', 'Online: entrar em sala']] })),
         L.mode === 'join' ? Row('Código da sala', h('input', { value: L.joinCode || '', placeholder: 'ex.: K7P2Q', onChange: e => setLobby({ joinCode: e.target.value.toUpperCase() }) })) : null),
-      div({ className: 'sec' }, 'Veículo (' + list.length + ')  ', h(Sel, { v: L.kind || 'all', on: v => setLobby({ kind: v }), opts: [['all', 'Todos (160)'], ['tank', 'Tanques (100)'], ['light', 'IFV, APC e leves (31)'], ['aa', 'Antiaéreos (19)'], ['heli', 'Helicópteros (10)']] }), ' ', h(Sel, { v: L.nation || 'Todas', on: v => setLobby({ nation: v }), opts: nations.map(n => [n, n]) })),
+      div({ className: 'sec' }, 'Veículo (' + list.length + ')  ', h(Sel, { v: L.kind || 'all', on: v => setLobby({ kind: v }), opts: [['all', 'Todos (' + tanks.length + ')'], ['tank', 'Tanques (' + cnt('tank') + ')'], ['light', 'IFV, APC e leves (' + cnt('light') + ')'], ['spg', 'Autopropulsados e caças-tanques (' + cnt('spg') + ')'], ['aa', 'Antiaéreos de canhão e míssil (' + cnt('aa') + ')'], ['heli', 'Helicópteros (' + cnt('heli') + ')']] }), ' ', h(Sel, { v: L.nation || 'Todas', on: v => setLobby({ nation: v }), opts: nations.map(n => [n, n]) })),
       div({ className: 'list tall' }, list.map(t => div({ key: t.id, className: 'item' + (t.id === cur.id ? ' on' : ''), onClick: () => pickTank(t.id) },
         span({ className: 'nm' }, (t.custom ? '★ ' : '') + (t.kind === 'heli' ? '🚁 ' : '') + t.name), span({ className: 'tag' }, t.nation + ' · ' + t.cal + ' mm · ' + t.mass + ' t · ' + t.vmax + ' km/h')))),
       div({ className: 'hint' }, 'Selecionado: ', h('b', null, cur.name), ' — ' + (def.stats.kind === 'heli' ? 'helicóptero: canhão ' + def.stats.cal + ' mm, capacidade ' + rack + ' unidades (tiro=1, foguete=8, míssil=40). Espaço sobe, Shift desce.' : 'canhão ' + def.stats.cal + ' mm, ' + (def.stats.rof ? 'cadência ' + def.stats.rof + ' tiros/s' + (def.stats.elev[1] > 60 ? ' (antiaéreo: eleva até ' + def.stats.elev[1] + '°)' : '') : 'recarga ' + def.stats.reload + ' s') + ', paiol ' + rack + ' unidades') + '. Crie veículos na aba 🛠 Veículo.'),
