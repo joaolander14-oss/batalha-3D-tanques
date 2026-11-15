@@ -81,7 +81,7 @@
       const info = lobbyInfo();
       if (L.mode === 'solo') return SB.Lobby.startSolo(info, settings());
       if (L.mode === 'host') { if (!hosting) { try { const code = await SB.Lobby.hostRoom(info); setLobby({ code }); } catch (e) { alert('Não foi possível criar a sala: ' + (e.type || e.message)); } } else SB.Lobby.startHost(settings()); }
-      else if (!joined) { try { await SB.Lobby.joinRoom(L.joinCode || '', info); } catch (e) { alert('Não foi possível entrar na sala.'); } }
+      else if (!joined) { try { await SB.Lobby.joinRoom(L.joinCode || '', info); } catch (e) { alert((e && e.message) || 'Não foi possível entrar na sala.'); } }
     };
     return div({ className: 'panel' },
       div({ className: 'sec' }, '⚔ Batalha de tanques'),
