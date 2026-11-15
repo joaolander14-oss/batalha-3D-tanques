@@ -103,7 +103,7 @@
     };
     ent.ammo = (spec.loadout || defaultLoadout(ent.st)).filter(l => l.n > 0 || true).slice(0, 4).map(l => ({ src: l.ammo, A: SB.ammoForGun(l.ammo, ent.st), n: l.n, n0: l.n }));
     if (!ent.ammo.length) ent.ammo = defaultLoadout(ent.st).map(l => ({ src: l.ammo, A: SB.ammoForGun(l.ammo, ent.st), n: l.n, n0: l.n }));
-    ent.isHeli = ent.st.kind === 'heli'; ent.vy = 0;
+    ent.isHeli = ent.st.kind === 'heli'; ent.vy = 0; ent.repairsLeft = 3; ent.rep = null; ent.svT = 0;
     ent.rad = ent.isHeli ? 0.5 * ent.st.bodyLen + 1.5 : 0.5 * Math.hypot(ent.st.bodyLen, ent.st.bodyWid) + 0.8;
     buildObj(ent); B.scene.add(ent.G);
     ent.stat = evalDmg(ent);
@@ -161,7 +161,7 @@
     B = {
       shakeMul: (function () { try { const v = parseFloat(localStorage.getItem('sb.shake')); return isFinite(v) ? v : 1; } catch (e) { return 1; } })(),
       myPeer: cfg.myPeer, cfg, map, el, renderer, scene, camera, ents: new Map(), shells: [], keys: {}, camYaw: 0, camPitch: 0.05, dist: 15, scope: false, zoom: 12, last: performance.now(), run: true, score: { A: 0, B: 0 },
-      feed: [], msgT: 0, hudT: 0, netT: 0, shake: 0, lock: false, over: false, t: 0, me: null, tracers: new THREE.Group(), smokes: [], flares: [], aimPt: null, names: [], aimR: 500, fovBase: 60, bots: [], paused: false,
+      feed: [], msgT: 0, hudT: 0, netT: 0, shake: 0, lock: false, over: false, t: 0, me: null, tracers: new THREE.Group(), smokes: [], flares: [], aimPt: null, zones: [], pts: { A: 0, B: 0 }, names: [], aimR: 500, fovBase: 60, bots: [], paused: false,
     };
     scene.add(B.tracers);
     const los0 = map.los, segS = (a, b, c, r) => { const ab = b.clone().sub(a), t = clamp(c.clone().sub(a).dot(ab) / Math.max(ab.lengthSq(), 1e-6), 0, 1); return a.clone().addScaledVector(ab, t).distanceTo(c) < r; };
@@ -175,7 +175,7 @@
     });
     if (!B.me) { B.me = [...B.ents.values()][0]; }
     B.camYaw = B.me.yaw; scene.add(new THREE.AmbientLight(0xffffff, 0.15));
-    bind(); resize();
+    mkZones(); bind(); resize();
     SB.Net.onMsg = onNet;
     B.run = true; B.raf = requestAnimationFrame(loop);
     toast('Batalha iniciada! WASD move, mouse mira, clique atira, botão direito = mira telescópica.', 5);
@@ -195,7 +195,7 @@
 <div id="hud">
  <div id="cross"></div><div id="gunmk"></div><div id="scope"><div class="sc-h"></div><div class="sc-v"></div></div>
  <div id="topc"><span class="ta">AZUL 0</span> <span class="tm">15:00</span> <span class="tb">VERM. 0</span></div>
- <div id="feed"></div><div id="msg"></div>
+ <div id="feed"></div><div id="msg"></div><div id="zones"></div><div id="svc"></div>
  <div id="rpf" class="frame" style="display:none;left:16px;top:62px;width:420px;height:280px"><span></span></div>
  <div id="xrf" class="frame" style="display:none;right:12px;bottom:192px;width:330px;height:230px"><span>RAIO-X DO MEU TANQUE (X)</span></div>
  <div id="status"><div id="spd">0 km/h</div><div id="rng">alcance: --</div><div id="crewl"></div><canvas id="mods" width="200" height="120"></canvas></div>
@@ -205,7 +205,7 @@
  <div id="score" style="display:none"></div>
  <div id="pause" style="display:none"><h2>Pausa</h2><button id="bres">Continuar</button><button id="bshake"></button><button id="bsound"></button><button id="bexit">Sair da batalha</button></div>
  <div id="endb" style="display:none"></div>
- <div id="help">(helicóptero: Espaço sobe, Shift desce) WASD mover · Mouse mirar · Clique atirar · Botão dir. mira · 1-4 munição · X raio-X · F extintor · C câmera · Tab placar · Esc pausa</div>
+ <div id="help">G reparar · (helicóptero: Espaço sobe, Shift desce) WASD mover · Mouse mirar · Clique atirar · Botão dir. mira · 1-4 munição · X raio-X · F extintor · C câmera · Tab placar · Esc pausa</div>
 </div>`;
   const $ = id => B.el.querySelector('#' + id);
   const H = { kd: null, ku: null, mm: null, md: null, mu: null, wh: null, rs: null, cm: null, pl: null };
@@ -214,6 +214,7 @@
       if (!B) return; if (e.repeat && e.code !== 'Space') { } B.keys[e.code] = true;
       if (e.code >= 'Digit1' && e.code <= 'Digit4') { const i = +e.code.slice(5) - 1; if (B.me.ammo[i]) { B.me.sel = i; } }
       if (e.code === 'KeyF') extinguish(B.me);
+      if (e.code === 'KeyG') startRepair(B.me);
       if (e.code === 'KeyX') toggleXray();
       if (e.code === 'KeyC') B.scope = !B.scope;
       if (e.code === 'Tab') { e.preventDefault(); $('score').style.display = 'block'; renderScore(); }
@@ -481,6 +482,7 @@
   }
   /* aplica o resultado do simulador ao tanque/helicóptero (só o dono da vítima) e avisa os outros */
   function applyResult(ent, res, byEid, p0, isBurst) {
+    ent.hitT = B.t; if (ent.rep) ent.rep = null;
     const changed = {};
     res.parts.forEach(pr => { if (pr.kind !== 'armor' && (pr.acc > 0 || pr.det || pr.fire)) { const o = ent.dmg[pr.id], n = { acc: pr.acc, det: pr.det, fire: pr.fire }; if (!o || o.acc !== n.acc || o.det !== n.det) { ent.dmg[pr.id] = n; changed[pr.id] = [n.acc, n.det ? 1 : 0, n.fire ? 1 : 0]; } } });
     ent.stat = evalDmg(ent);
@@ -522,7 +524,7 @@
   }
   function extinguish(e) { if (!e.burning || e.ext <= 0) return; e.ext--; if (Math.random() < 0.75) { e.burning = false; toast('Incêndio apagado!', 2); } else toast('Extintor falhou!', 2); }
   function respawnEnt(e, x, z, yaw) {
-    e.alive = true; e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.reload = 3; e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); e.det = false;
+    e.alive = true; e.repairsLeft = 3; e.rep = null; e.svT = 0; e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.reload = 3; e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); e.det = false;
     e.mats.body.color.setHex(PAINT[e.def.nation || 'Customizado'] || 0x6d7163); e.mats.body.emissive.copy(new THREE.Color(TEAMCOL[e.team]).multiplyScalar(0.07));
     e.T.position.set(...e.st.turPivot); e.T.rotation.set(0, 0, 0); e.tv = null; e.respawn = 0; e.tYaw = 0; e.gP = 0; e.snap = null; e.pen = null; placeAt(e, x, z, yaw);
     if (e === B.me) { B.camYaw = yaw; }
@@ -531,11 +533,90 @@
   /* ---------------- IA dos bots ---------------- */
   function enemies(e) { return [...B.ents.values()].filter(o => o.alive && o.team !== e.team); }
   function droop(A, r) { const v = A.v0 * Math.exp(-A.k * r * 0.5); return Math.asin(clamp(G * r / (2 * v * v), 0, 0.6)); }
+  /* ---------------- base, zonas, manutenção e reparo ---------------- */
+  const inBase = (team, x, z) => (team === 'A' ? z < -B.map.half + 190 : z > B.map.half - 190);
+  const baseWp = e => ({ x: clamp(e.x, -B.map.half * 0.5, B.map.half * 0.5), z: e.team === 'A' ? -B.map.half + 100 : B.map.half - 100 });
+  function serviceFor(e) {
+    if (inBase(e.team, e.x, e.z)) return 6;
+    for (const z of B.zones) if (z.owner === e.team && Math.hypot(e.x - z.x, e.z - z.z) < z.r) return 14;
+    return 0;
+  }
+  const nonCrewDmg = e => e.def.parts.some(p => p.kind !== 'armor' && p.kind !== 'crew' && e.dmg[p.id] && e.dmg[p.id].acc > 0.02 * Math.max(1, p.hp || 100));
+  const needsService = e => e.ammo.some(a => a.n < a.n0) || Object.keys(e.dmg).length > 0 || e.burning || e.stat.crew < e.stat.crewTotal;
+  const lowSupplies = e => { const t0 = e.ammo.reduce((a, s) => a + s.n0, 0) || 1, t = e.ammo.reduce((a, s) => a + s.n, 0); return t / t0 < 0.25 || e.stat.speedF < 0.6 || e.stat.gunDead || e.stat.crew < e.stat.crewTotal - 1; };
+  const isSlow = e => e.isHeli ? (Math.abs(e.v) < 6 && e.y - B.map.H(e.x, e.z) < 7) : Math.abs(e.v) < 1.6;
+  function fullService(e) {
+    e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.pen = null; e.repairsLeft = 3; e.rep = null;
+    e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); SB.Net.send({ t: 'rep', e: e.eid, f: 1 });
+    if (e === B.me) toast('✔ Reabastecido e reparado por completo!', 2.5);
+  }
+  function serviceStep(e, dt) {
+    if (!e.alive) { e.svT = 0; e.rep = null; return; }
+    const need = serviceFor(e), recentHit = B.t - (e.hitT || -99) < 2.5;
+    if (need && isSlow(e) && !recentHit && needsService(e)) { e.svT = (e.svT || 0) + dt; e.svDur = need; if (e.svT >= need) { fullService(e); e.svT = 0; } } else e.svT = 0;
+    if (e.bot && !e.rep && !(e.ai && e.ai.tg) && e.repairsLeft > 0 && nonCrewDmg(e) && isSlow(e) && !need) startRepair(e, true);
+    if (e.rep) {
+      if (!isSlow(e) || recentHit) { e.rep = null; if (e === B.me) toast('Reparo interrompido!', 2); return; }
+      e.rep.t += dt;
+      if (e.rep.t >= e.rep.dur) {
+        e.def.parts.forEach(p => { if (p.kind !== 'armor' && p.kind !== 'crew') delete e.dmg[p.id]; });
+        e.burning = false; e.burn = 0; e.repairsLeft--; e.stat = evalDmg(e); e.rep = null; SB.Net.send({ t: 'rep', e: e.eid, f: 0 });
+        if (e === B.me) toast('🛠 Reparo concluído (restam ' + e.repairsLeft + ')', 2.5);
+      }
+    }
+  }
+  function startRepair(e, quiet) {
+    if (!e.alive || e.rep) return;
+    if (e.repairsLeft <= 0) { if (!quiet && e === B.me) toast('Sem equipe de reparo: volte a uma base ou zona sua.', 2.5); return; }
+    if (!nonCrewDmg(e) && !e.burning) { if (!quiet && e === B.me) toast('Nada para reparar (tripulantes só voltam na base).', 2); return; }
+    if (!isSlow(e)) { if (!quiet && e === B.me) toast(e.isHeli ? 'Pouse (baixa altitude e velocidade) para reparar.' : 'Pare o veículo para reparar.', 2); return; }
+    e.rep = { t: 0, dur: 12 }; if (e === B.me) toast('🛠 Reparando… não se mova (12 s)', 2.5);
+  }
+  function zoneStep(dt) {
+    if (!B.zones.length || B.cfg.mode === 'client') return;
+    B.zones.forEach(z => {
+      let nA = 0, nB = 0;
+      for (const e of B.ents.values()) { if (!e.alive || Math.hypot(e.x - z.x, e.z - z.z) > z.r) continue; if (e.isHeli && e.y - B.map.H(e.x, e.z) > 90) continue; if (e.team === 'A') nA++; else nB++; }
+      const d = nA - nB; if (d) z.cap = clamp(z.cap + clamp(d, -3, 3) * 0.07 * dt, -1, 1);
+      if (z.cap >= 1) z.owner = 'A'; else if (z.cap <= -1) z.owner = 'B'; else if (Math.abs(z.cap) < 0.03) z.owner = null;
+    });
+    B.zt = (B.zt || 0) + dt;
+    if (B.zt >= 1) { B.zt -= 1; B.zones.forEach(z => { if (z.owner) B.pts[z.owner] += 1; }); const cap = B.cfg.capPoints || 600; if (B.pts.A >= cap) endMatch('A'); else if (B.pts.B >= cap) endMatch('B'); }
+  }
+  function mkZones() {
+    B.zones = []; if (B.cfg.rules !== 'capture') return;
+    B.map.zones.forEach(z => {
+      const gh = B.map.H(z.x, z.z);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(z.r, z.r, 70, 40, 1, true), new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
+      beam.position.set(z.x, gh + 30, z.z); B.scene.add(beam);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(z.r, 0.9, 6, 48), new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.7 }));
+      ring.rotation.x = Math.PI / 2; ring.position.set(z.x, gh + 2.5, z.z); B.scene.add(ring);
+      const flag = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 24, 6), new THREE.MeshBasicMaterial({ color: 0xcccccc })); flag.position.set(z.x, gh + 12, z.z); B.scene.add(flag);
+      B.zones.push({ x: z.x, z: z.z, r: z.r, n: z.n, cap: 0, owner: null, beam, ring, flag, last: 9 });
+    });
+    // marcadores das bases (mastros com bandeira da equipe)
+    ['A', 'B'].forEach(team => { const zb = team === 'A' ? -B.map.half + 190 : B.map.half - 190; for (let x = -B.map.half * 0.6; x <= B.map.half * 0.6; x += 150) { const gh = B.map.H(x, zb); const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 14, 5), new THREE.MeshBasicMaterial({ color: team === 'A' ? 0x3aa0ff : 0xff5a4a })); m.position.set(x, gh + 7, zb); B.scene.add(m); } });
+  }
+  function zoneColors() {
+    B.zones.forEach(z => {
+      const k = Math.round(z.cap * 100) + (z.owner || 'n'); if (z.last === k) return; z.last = k;
+      const c = new THREE.Color(0x888888).lerp(new THREE.Color(z.cap >= 0 ? 0x3aa0ff : 0xff5a4a), Math.min(1, Math.abs(z.cap)));
+      z.beam.material.color.copy(c); z.ring.material.color.copy(c); z.flag.material.color.copy(c);
+    });
+  }
   function scoreAmmo(A, r, tg) {
     if (A.wc === 'aam' && !(tg && tg.isHeli)) return -1; if (A.smoke || A.illum || A.inert) return -1;
     if (tg && tg.isHeli) return A.burst ? 100 + A.tnt * 10 : A.fam === 'he' ? 60 : SB.nominalPen(A, r) * 0.2;
     const pen = SB.nominalPen(A, r) * (A.fam === 'he' ? 0.4 : 1) * (A.guid ? 1.3 : 1) * (A.sub ? 0.5 : 1);
     return A.wc === 'aam' ? -1 : pen;
+  }
+  function pickWp(e) {
+    if (B.zones.length) {
+      const cand = B.zones.filter(z => z.owner !== e.team), arr = cand.length ? cand : B.zones, z = arr[Math.floor(Math.random() * arr.length)], a = Math.random() * 6.28, rr = Math.random() * z.r * 0.6;
+      return { x: z.x + Math.cos(a) * rr, z: z.z + Math.sin(a) * rr };
+    }
+    const dirz = e.team === 'A' ? 1 : -1;
+    return { x: clamp(e.x + (Math.random() - 0.5) * 500, -B.map.half + 60, B.map.half - 60), z: clamp(e.z + dirz * (150 + Math.random() * 300), -B.map.half + 60, B.map.half - 60) };
   }
   function aiHeli(e, dt) {
     const ai = e.ai || (e.ai = { t: 0, tg: null, alt: 38 + Math.random() * 28, off: Math.random() * 6.28, wp: null });
@@ -544,13 +625,16 @@
       ai.t = 0.6 + Math.random() * 0.4; let best = null, bd = 1e9;
       enemies(e).forEach(o => { const d = Math.hypot(o.x - e.x, o.z - e.z); if (d < 2800 && d < bd) { bd = d; best = o; } });
       ai.tg = best; ai.los = best ? B.map.los(pos, new V3(best.x, best.y + 2, best.z)) : false;
-      if (!ai.wp || Math.hypot(ai.wp.x - e.x, ai.wp.z - e.z) < 60) { const dz = e.team === 'A' ? 1 : -1; ai.wp = { x: clamp(e.x + (Math.random() - 0.5) * 600, -B.map.half + 80, B.map.half - 80), z: clamp(e.z + dz * (300 + Math.random() * 400), -B.map.half + 80, B.map.half - 80) }; }
+      ai.svc = lowSupplies(e);
+      if (ai.svc) ai.wp = baseWp(e); else if (!ai.wp || ai.wasSvc || Math.hypot(ai.wp.x - e.x, ai.wp.z - e.z) < 60) ai.wp = pickWp(e);
+      ai.wasSvc = ai.svc;
     }
     const tg = ai.tg; let gx, gz, thr = 0.9;
     if (tg) { gx = tg.x + Math.cos(B.t * 0.3 + ai.off) * 300; gz = tg.z + Math.sin(B.t * 0.3 + ai.off) * 300; const d = Math.hypot(tg.x - e.x, tg.z - e.z); thr = d > 1300 ? 1 : d < 650 ? -0.3 : 0.25; } else { gx = ai.wp.x; gz = ai.wp.z; }
     const want = Math.atan2(-(gx - e.x), -(gz - e.z)), err = wrap(want - e.yaw);
     c.steer = clamp(err * 2, -1, 1); c.thr = Math.abs(err) > 1.1 ? Math.min(thr, 0.3) : thr;
-    const ax = e.x - Math.sin(e.yaw) * 70, az = e.z - Math.cos(e.yaw) * 70, gh = Math.max(B.map.H(e.x, e.z), B.map.H(ax, az)), tgtAlt = gh + ai.alt + (B.map.hit(ax, e.y, az) ? 60 : 0);
+    if (ai.svc && inBase(e.team, e.x, e.z)) { c.thr = 0; c.steer = 0; }
+    const ax = e.x - Math.sin(e.yaw) * 70, az = e.z - Math.cos(e.yaw) * 70, gh = Math.max(B.map.H(e.x, e.z), B.map.H(ax, az)), tgtAlt = (ai.svc && inBase(e.team, e.x, e.z)) ? gh + 2.5 : gh + ai.alt + (B.map.hit(ax, e.y, az) ? 60 : 0);
     c.lift = clamp((tgtAlt - e.y) / 12, -1, 1); c.fire = false;
     if (tg) {
       const tp = new V3(tg.x, tg.y + 1.5, tg.z), r = pos.distanceTo(tp);
@@ -576,7 +660,9 @@
       const aaV = e.st.elev && e.st.elev[1] > 60;
       enemies(e).forEach(o => { const d0 = Math.hypot(o.x - e.x, o.z - e.z), d = aaV ? (o.isHeli ? d0 * 0.3 : d0 * 3) : d0, lim = aaV && o.isHeli ? 2600 : 900; if (d0 < lim && d < bd && B.map.los(pos, new V3(o.x, o.y + 2, o.z))) { bd = d; best = o; } });
       ai.tg = best;
-      if (!ai.wp || Math.hypot(ai.wp.x - e.x, ai.wp.z - e.z) < 40) { const dirz = e.team === 'A' ? 1 : -1; ai.wp = { x: clamp(e.x + (Math.random() - 0.5) * 500, -B.map.half + 60, B.map.half - 60), z: clamp(e.z + dirz * (150 + Math.random() * 300), -B.map.half + 60, B.map.half - 60) }; }
+      ai.svc = lowSupplies(e);
+      if (ai.svc) ai.wp = baseWp(e); else if (!ai.wp || ai.wasSvc || Math.hypot(ai.wp.x - e.x, ai.wp.z - e.z) < 40) ai.wp = pickWp(e);
+      ai.wasSvc = ai.svc;
       ai.strafe = Math.random() < 0.5 ? 1 : -1;
     }
     const c = e.ctl, tg = ai.tg;
@@ -588,6 +674,7 @@
     const ax = e.x - Math.sin(e.yaw) * 16, az = e.z - Math.cos(e.yaw) * 16;
     if (B.map.hit(ax, e.y + 1, az) || Math.abs(B.map.H(ax, az) - e.y) > 3.2) { c.steer = ai.strafe; thr = 0.25; }
     if (e.stuck > 1.2) { thr = -0.7; c.steer = ai.strafe; }
+    if (ai.svc && inBase(e.team, e.x, e.z) && !tg) { thr = 0; c.steer = 0; }
     c.thr = thr; c.fire = false;
     if (tg) {
       const tp = new V3(tg.x, tg.y + 1.6, tg.z), r = pos.distanceTo(tp), slot = e.ammo[e.sel];
@@ -626,7 +713,7 @@
     for (const e of B.ents.values()) {
       if (e.owner === B.myPeer) {
         if (e.bot && e.alive) aiThink(e, dt);
-        driveEnt(e, dt);
+        driveEnt(e, dt); serviceStep(e, dt);
         if (!e.alive && e.respawn > 0) { e.respawn -= dt; if (e.respawn <= 0) { const sl = B.map.spawns[e.team][Math.floor(Math.random() * 14)]; respawnEnt(e, sl.x + (Math.random() - 0.5) * 20, sl.z, sl.yaw); SB.Net.send({ t: 'r', e: e.eid, x: e.x, z: e.z, yaw: e.yaw }); } }
       } else remoteStep(e, dt);
       effectsStep(e, dt);
@@ -635,8 +722,9 @@
     for (let i = B.smokes.length - 1; i >= 0; i--) { const sm = B.smokes[i]; sm.t -= dt; if (sm.t <= 0) { B.smokes.splice(i, 1); continue; } if (Math.random() < dt * 12) SB.FX.smoke(sm.p.clone().add(new V3((Math.random() - 0.5) * sm.r, Math.random() * 4, (Math.random() - 0.5) * sm.r)), 1, false); }
     for (let i = B.flares.length - 1; i >= 0; i--) { const f = B.flares[i]; f.t -= dt; f.L.position.y -= 2 * dt; if (f.t <= 0) { B.scene.remove(f.L); B.flares.splice(i, 1); } }
     SB.FX.update(dt); B.shake = Math.max(0, B.shake - dt * 4);
+    zoneStep(dt); zoneColors();
     B.netT -= dt; if (B.netT <= 0) { B.netT = 0.07; netState(); }
-    if (B.cfg.mode !== 'client' && B.t > B.cfg.timeLimit) endMatch(B.score.A >= B.score.B ? (B.score.A === B.score.B ? 'T' : 'A') : 'B');
+    if (B.cfg.mode !== 'client' && B.t > B.cfg.timeLimit) { const sc = B.cfg.rules === 'capture' ? B.pts : B.score; endMatch(sc.A >= sc.B ? (sc.A === sc.B ? 'T' : 'A') : 'B'); }
   }
   function effectsStep(e, dt) {
     if (e.isHeli) {
@@ -662,6 +750,7 @@
   }
   function netState() {
     if (SB.Net.mode === 'off') return;
+    if (B.zones.length && B.cfg.mode !== 'client') { B.zN = (B.zN || 0) - 0.07; if (B.zN <= 0) { B.zN = 0.5; SB.Net.send({ t: 'z', c: B.zones.map(z => +z.cap.toFixed(3)), o: B.zones.map(z => z.owner || ''), p: [Math.floor(B.pts.A), Math.floor(B.pts.B)] }); } }
     const arr = []; for (const e of B.ents.values()) if (e.owner === B.myPeer && e.alive) arr.push([e.eid, +e.x.toFixed(2), +e.z.toFixed(2), +e.yaw.toFixed(3), +e.tYaw.toFixed(3), +e.gP.toFixed(3), +e.v.toFixed(2), +e.y.toFixed(1)]);
     if (arr.length) SB.Net.send({ t: 's', a: arr });
     const gm = B.shells.filter(q => q.mine && q.guid).map(q => [q.id, +q.pos.x.toFixed(1), +q.pos.y.toFixed(1), +q.pos.z.toFixed(1), +q.vel.x.toFixed(1), +q.vel.y.toFixed(1), +q.vel.z.toFixed(1)]);
@@ -676,15 +765,17 @@
       case 'd': { const ent = B.ents.get(m.e); if (ent && ent.owner !== B.myPeer) showHit(m, false); break; }
       case 'r': { const e = B.ents.get(m.e); if (e && e.owner !== B.myPeer) respawnEnt(e, m.x, m.z, m.yaw); break; }
       case 'end': showEnd(m.w); break;
+      case 'z': if (B.cfg.mode === 'client') { m.c.forEach((c, i) => { if (B.zones[i]) { B.zones[i].cap = c; B.zones[i].owner = m.o[i] || null; } }); B.pts.A = m.p[0]; B.pts.B = m.p[1]; } break;
+      case 'rep': { const e = B.ents.get(m.e); if (!e || e.owner === B.myPeer) break; if (m.f) { e.dmg = {}; e._dead = {}; e.burning = false; e.pen = null; e.ammo.forEach(a => { a.n = a.n0; }); } else e.def.parts.forEach(p => { if (p.kind !== 'armor' && p.kind !== 'crew') delete e.dmg[p.id]; }); e.stat = evalDmg(e); break; }
       case 'abort': case 'hostLeft': toast('O anfitrião encerrou a partida.', 3); setTimeout(() => stop(), 1500); break;
       case 'left': { for (const e of B.ents.values()) if (e.owner === from) { e.alive = false; e.snap = null; e.G.visible = false; } break; }
     }
   }
-  function checkEnd() { if (B.cfg.mode === 'client') return; if (B.score.A >= B.cfg.winKills) endMatch('A'); else if (B.score.B >= B.cfg.winKills) endMatch('B'); }
+  function checkEnd() { if (B.cfg.mode === 'client' || B.cfg.rules === 'capture') return; if (B.score.A >= B.cfg.winKills) endMatch('A'); else if (B.score.B >= B.cfg.winKills) endMatch('B'); }
   function endMatch(w) { if (B.over) return; SB.Net.send({ t: 'end', w }); showEnd(w); }
   function showEnd(w) {
     if (B.over) return; B.over = true; try { document.exitPointerLock(); } catch (e) { }
-    const d = $('endb'); d.style.display = 'flex'; d.innerHTML = '<h1>' + (w === 'T' ? 'EMPATE' : (w === B.me.team ? 'VITÓRIA!' : 'DERROTA')) + '</h1><p>Azul ' + B.score.A + ' × ' + B.score.B + ' Vermelho</p><p>Seus abates: ' + B.me.kills + ' · Mortes: ' + B.me.deaths + '</p><button id="bback">Voltar ao menu</button>';
+    const d = $('endb'); d.style.display = 'flex'; d.innerHTML = '<h1>' + (w === 'T' ? 'EMPATE' : (w === B.me.team ? 'VITÓRIA!' : 'DERROTA')) + '</h1><p>' + (B.cfg.rules === 'capture' ? 'Pontos de zona: Azul ' + Math.floor(B.pts.A) + ' × ' + Math.floor(B.pts.B) + ' Vermelho · abates ' : '') + 'Azul ' + B.score.A + ' × ' + B.score.B + ' Vermelho</p><p>Seus abates: ' + B.me.kills + ' · Mortes: ' + B.me.deaths + '</p><button id="bback">Voltar ao menu</button>';
     d.querySelector('#bback').onclick = () => stop();
   }
 
@@ -813,7 +904,15 @@
   const mm = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   function hud() {
     const me = B.me, st = me.st;
-    $('topc').innerHTML = '<span class="ta">AZUL ' + B.score.A + '</span> <span class="tm">' + mm(Math.max(0, B.cfg.timeLimit - B.t)) + ' · meta ' + B.cfg.winKills + '</span> <span class="tb">VERM. ' + B.score.B + '</span>';
+    if (B.cfg.rules === 'capture') {
+      $('topc').innerHTML = '<span class="ta">AZUL ' + Math.floor(B.pts.A) + '</span> <span class="tm">' + mm(Math.max(0, B.cfg.timeLimit - B.t)) + ' · captura até ' + (B.cfg.capPoints || 600) + '</span> <span class="tb">VERM. ' + Math.floor(B.pts.B) + '</span>';
+      $('zones').innerHTML = B.zones.map(z => { const col = z.cap >= 0 ? '#3aa0ff' : '#ff5a4a', pct = Math.round(Math.abs(z.cap) * 100); return '<div class="zt" style="border-color:' + (z.owner === 'A' ? '#3aa0ff' : z.owner === 'B' ? '#ff5a4a' : '#667') + '"><b>' + z.n + '</b><i style="background:' + col + ';width:' + pct + '%"></i></div>'; }).join('');
+    } else $('topc').innerHTML = '<span class="ta">AZUL ' + B.score.A + '</span> <span class="tm">' + mm(Math.max(0, B.cfg.timeLimit - B.t)) + ' · meta ' + B.cfg.winKills + '</span> <span class="tb">VERM. ' + B.score.B + '</span>';
+    { const me = B.me, sv = $('svc'); let t = ''; if (me.rep) t = '🛠 Reparando… ' + Math.round(me.rep.t / me.rep.dur * 100) + '%';
+      else if (me.svT > 0) t = '🔧 Reabastecendo e reparando… ' + Math.round(me.svT / (me.svDur || 6) * 100) + '%';
+      else if (me.alive && serviceFor(me) && needsService(me)) t = '🔧 Ponto de manutenção: pare' + (me.isHeli ? ' e pouse' : '') + ' (' + serviceFor(me) + ' s)';
+      else if (me.alive && (nonCrewDmg(me) || me.burning) && me.repairsLeft > 0) t = 'Danificado: G repara no lugar (' + me.repairsLeft + ' restantes)';
+      sv.textContent = t; sv.style.display = t ? 'block' : 'none'; }
     $('feed').innerHTML = B.feed.filter(f => B.t - f.at < 12).map(f => '<div style="color:' + TEAMCOL[f.team] + '">' + f.t + '</div>').join('');
     $('spd').textContent = Math.round(Math.abs(me.v) * 3.6) + ' km/h' + (me.isHeli ? ' · alt ' + Math.round(me.y - B.map.H(me.x, me.z)) + ' m' : '') + '  |  ' + me.def.name;
     $('rng').textContent = 'alcance: ' + (B.aimR >= 3200 ? '--' : Math.round(B.aimR) + ' m') + (me.burning ? '   🔥 INCÊNDIO (F)' : '') + (!me.alive ? '   ☠ reaparece em ' + Math.ceil(me.respawn) + ' s' : '');
@@ -840,6 +939,8 @@
   function drawMini(me) {
     const c = $('mini'), g = c.getContext('2d'), W = c.width, S = B.map.size; g.fillStyle = 'rgba(15,22,30,.75)'; g.fillRect(0, 0, W, W);
     const m = (x, z) => [(x + S / 2) / S * W, (z + S / 2) / S * W];
+    { const hb = 190 / S * W; g.fillStyle = 'rgba(58,160,255,.16)'; g.fillRect(0, 0, W, hb); g.fillStyle = 'rgba(255,90,74,.16)'; g.fillRect(0, W - hb, W, hb);
+      B.zones.forEach(z => { const [a, b] = m(z.x, z.z); g.beginPath(); g.arc(a, b, z.r / S * W, 0, 7); g.fillStyle = z.owner === 'A' ? 'rgba(58,160,255,.35)' : z.owner === 'B' ? 'rgba(255,90,74,.35)' : 'rgba(180,180,190,.25)'; g.fill(); g.strokeStyle = '#fff8'; g.stroke(); }); }
     g.fillStyle = '#4a4f55'; B.map.obst.forEach(o => { if (o.tree) return; const [a, b] = m(o.x, o.z); g.fillRect(a - 1, b - 1, 2, 2); });
     for (const e of B.ents.values()) {
       if (!e.alive) continue; const mine = e.team === me.team; if (!mine) { const d = Math.hypot(e.x - me.x, e.z - me.z); if (d > 700 || !B.map.los(new V3(me.x, me.y + 2, me.z), new V3(e.x, e.y + 2, e.z))) continue; }

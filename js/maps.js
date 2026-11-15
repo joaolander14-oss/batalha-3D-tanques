@@ -44,6 +44,9 @@
       if (id === 'plain') for (let g = 0; g < 14; g++) { const cx = (rnd() - 0.5) * (S - 200), cz = (rnd() - 0.5) * (S - 400); for (let k = 0; k < 14; k++) { const x = cx + (rnd() - 0.5) * 70, z = cz + (rnd() - 0.5) * 70; if (free(x, z)) obst.push({ t: 'cyl', x, z, r: 1.1, h: 11 + rnd() * 5, c: 0x2f4a22, tree: true }); } }
     }
     obst.forEach(o => { o.base = H(o.x, o.z); o.top = o.base + o.h; });
+    const zones = [{ x: 0, z: 0, r: 55, n: 'B' }, { x: -S * 0.3, z: S * 0.02, r: 48, n: 'A' }, { x: S * 0.3, z: -S * 0.02, r: 48, n: 'C' }];
+    // afasta obstáculos do centro das zonas
+    for (let i = obst.length - 1; i >= 0; i--) { const o = obst[i]; if (zones.some(z => Math.hypot(o.x - z.x, o.z - z.z) < z.r + (o.t === 'cyl' ? o.r : Math.max(o.hx, o.hz)))) obst.splice(i, 1); }
     const CS = 64, NC = Math.ceil(S / CS) + 2, grid = new Array(NC * NC);
     obst.forEach(o => {
       const r = (o.t === 'cyl' ? o.r : Math.max(o.hx, o.hz)) + 8;
@@ -52,7 +55,7 @@
     });
     const near = (x, z) => { const i = Math.floor((x + half) / CS), j = Math.floor((z + half) / CS); return (i < 0 || j < 0 || i >= NC || j >= NC) ? EMPTY : (grid[i + j * NC] || EMPTY); };
     return {
-      id, def: d, size: S, half, H, obst, spawns, ph,
+      id, def: d, size: S, half, H, obst, spawns, ph, zones,
       push(x, z, r) {
         for (const o of near(x, z)) {
           if (o.t === 'cyl') { const dx = x - o.x, dz = z - o.z, dd = Math.hypot(dx, dz), m = o.r + r; if (dd < m && dd > 1e-4) { x = o.x + dx / dd * m; z = o.z + dz / dd * m; } }

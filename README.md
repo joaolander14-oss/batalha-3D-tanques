@@ -8,6 +8,7 @@ Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo
 - Editor 3D de veículo (tanque ou helicóptero), de munição (desenho do projétil/míssil/foguete) e de materiais
 - Penetração, ricochete, estilhaços, incêndio e detonação de munição simulados de verdade
 - Raio-X do próprio tanque (tecla X) e repetição em raio-X de cada acerto
+- Modos: abates por equipe ou captura de zona (3 zonas, 1 ponto/s por zona); base e zonas capturadas reabastecem munição e consertam o veículo (tecla G repara no lugar)
 - Solo contra bots ou online (P2P via PeerJS, sala por código)
 
 ## Como jogar

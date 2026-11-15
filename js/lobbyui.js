@@ -77,7 +77,7 @@
     const nations = ['Todas', ...Array.from(new Set(tanks.map(t => t.nation)))];
     const list = tanks.filter(t => (!L.nation || L.nation === 'Todas' || t.nation === L.nation) && (!L.kind || L.kind === 'all' || (t.cat || t.kind) === L.kind));
     const net = SB.Net.status, players = SB.Lobby.players, online = L.mode !== 'solo', hosting = SB.Net.mode === 'host', joined = SB.Net.mode === 'client';
-    const settings = () => ({ map: L.map, botsA: L.botsA, botsB: L.botsB, heliA: L.heliA || 0, heliB: L.heliB || 0, winKills: L.winKills, minutes: L.minutes });
+    const settings = () => ({ map: L.map, botsA: L.botsA, botsB: L.botsB, heliA: L.heliA || 0, heliB: L.heliB || 0, winKills: L.winKills, rules: L.rules || 'kills', capPoints: L.capPoints || 600, minutes: L.minutes });
     const go = async () => {
       const info = lobbyInfo();
       if (L.mode === 'solo') return SB.Lobby.startSolo(info, settings());
@@ -110,7 +110,9 @@
         Row('Bots equipe vermelha', h(Num, { v: L.botsB, on: v => setLobby({ botsB: clamp(Math.round(v), 0, 10) }), step: 1 })),
         Row('Helicópteros bot (azul)', h(Num, { v: L.heliA || 0, on: v => setLobby({ heliA: clamp(Math.round(v), 0, 5) }), step: 1 })),
         Row('Helicópteros bot (verm.)', h(Num, { v: L.heliB || 0, on: v => setLobby({ heliB: clamp(Math.round(v), 0, 5) }), step: 1 })),
-        Row('Abates para vencer', h(Num, { v: L.winKills, on: v => setLobby({ winKills: clamp(Math.round(v), 3, 100) }), step: 5 })),
+        Row('Modo de jogo', h(Sel, { v: L.rules || 'kills', on: v => setLobby({ rules: v }), opts: [['kills', 'Abates (equipes)'], ['capture', 'Captura de zona (3 zonas)']] })),
+        (L.rules || 'kills') === 'capture' ? Row('Pontos para vencer', h(Num, { v: L.capPoints || 600, on: v => setLobby({ capPoints: clamp(Math.round(v), 100, 3000) }), step: 100 })) : Row('Abates para vencer', h(Num, { v: L.winKills, on: v => setLobby({ winKills: clamp(Math.round(v), 3, 100) }), step: 5 })),
+        (L.rules || 'kills') === 'capture' ? div({ className: 'hint' }, 'Fique nas zonas com mais veículos que o inimigo para capturá-las (1 ponto/s por zona). Zonas suas e a sua base reabastecem munição e consertam o veículo.') : null,
         Row('Tempo (min)', h(Num, { v: L.minutes, on: v => setLobby({ minutes: clamp(v, 2, 60) }), step: 1 }))),
       online ? div({ className: 'sec' }, 'Sala online') : null,
       online ? div({ className: 'form' },

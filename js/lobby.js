@@ -59,10 +59,10 @@
   L.startSolo = function (info, settings) {
     L.players = [Object.assign({ pid: 0, peer: 'local', team: 'A' }, info)];
     const specs = L.buildSpecs(settings, 'local');
-    SB.Battle.start({ map: settings.map, seed: (Math.random() * 1e6) | 0, specs, myEid: 'P0', myPeer: 'local', mode: 'solo', winKills: settings.winKills, timeLimit: settings.minutes * 60 });
+    SB.Battle.start({ map: settings.map, seed: (Math.random() * 1e6) | 0, specs, myEid: 'P0', myPeer: 'local', mode: 'solo', winKills: settings.winKills, rules: settings.rules || 'kills', capPoints: settings.capPoints || 600, timeLimit: settings.minutes * 60 });
   };
   L.startHost = function (settings) {
-    const specs = L.buildSpecs(settings, Net.id), cfg = { map: settings.map, seed: (Math.random() * 1e6) | 0, specs, winKills: settings.winKills, timeLimit: settings.minutes * 60 };
+    const specs = L.buildSpecs(settings, Net.id), cfg = { map: settings.map, seed: (Math.random() * 1e6) | 0, specs, winKills: settings.winKills, rules: settings.rules || 'kills', capPoints: settings.capPoints || 600, timeLimit: settings.minutes * 60 };
     Net.send({ t: 'start', cfg }); L.begin(cfg, 'host');
   };
   L.begin = function (cfg, mode) {
