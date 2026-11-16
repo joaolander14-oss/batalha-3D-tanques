@@ -55,7 +55,8 @@
   }
   function lobbyInfo() {
     const s = S(), L = s.lobby, t = SB.allTanks().find(x => x.id === L.tankId) || SB.allTanks()[9], def = t.get();
-    let loadout = L.loadout.map(r => ({ ammo: s.ammos.find(a => a.id === r.aid), n: r.n })).filter(r => r.ammo && r.n > 0).slice(0, 4);
+    const dom = def.stats.kind === 'heli' ? 'air' : 'ground';
+    let loadout = L.loadout.map(r => ({ ammo: s.ammos.find(a => a.id === r.aid), n: r.n })).filter(r => r.ammo && r.n > 0 && (r.ammo.domain || 'ground') === dom).slice(0, 4);
     if (!loadout.length) loadout = SB.defaultLoadout(def.stats);
     let tot = 0; loadout = loadout.map(r => { const sl = r.ammo.slots || 1, n = Math.max(0, Math.min(r.n, Math.floor((def.stats.rack - tot) / sl))); tot += n * sl; return { ammo: r.ammo, n }; }).filter(r => r.n > 0);
     return { name: L.name || 'Jogador', tankId: t.id, tank: t.custom ? def : null, tankName: t.name, loadout };
@@ -64,12 +65,13 @@
   /* seletor de munição agrupado por classe (PDF) */
   function AmmoSel({ v, on, ammos }) {
     const groups = {};
-    ammos.forEach(a => { const g = !a.builtin ? '★ Minhas munições' : (a.info && a.info.sam ? '🛰 Míssil antiaéreo (SAM)' : a.info && a.info.heli ? '🚁 Helicóptero (canhão / foguete / míssil / ar-ar)' : (SB.CLS_NAMES[(SB.TYPE[a.type] || {}).cls] || 'Outras')); (groups[g] = groups[g] || []).push(a); });
+    ammos.forEach(a => { const g = !a.builtin ? '★ Minhas munições' : (a.info && a.info.sam ? '🛰 Míssil antiaéreo (SAM)' : a.info && a.info.gATGM ? '🎯 ATGM de veículo' : a.info && a.info.gGun ? '🔫 Canhão automático / metralhadora (veículo)' : a.info && a.info.heli ? '🚁 Helicóptero (canhão / foguete / míssil / ar-ar)' : (SB.CLS_NAMES[(SB.TYPE[a.type] || {}).cls] || 'Outras')); (groups[g] = groups[g] || []).push(a); });
     return h('select', { value: v, onChange: e => on(e.target.value) }, Object.keys(groups).map(g => h('optgroup', { key: g, label: g }, groups[g].map(a => h('option', { key: a.id, value: a.id }, a.name)))));
   }
   SB.BattlePanel = function BattlePanel() {
     const { Row, Num, Sel, button, div, span } = U(); const s = Store.use(), L = s.lobby, tanks = SB.allTanks(), cur = tanks.find(t => t.id === L.tankId) || tanks[9], def = cur.get(), rack = def.stats.rack;
     const slotsOf = id => { const a = s.ammos.find(x => x.id === id); return a ? (a.slots || 1) : 1; };
+    const dom = def.stats.kind === 'heli' ? 'air' : 'ground', pool = s.ammos.filter(a => (a.domain || 'ground') === dom);
     const used = L.loadout.reduce((a, r) => a + r.n * slotsOf(r.aid), 0);
     const setRow = (i, k, v) => setLobby({ loadout: L.loadout.map((r, j) => j === i ? { ...r, [k]: v } : r) });
     const maxFor = i => { const others = L.loadout.reduce((a, r, j) => a + (j === i ? 0 : r.n * slotsOf(r.aid)), 0); return Math.max(0, Math.floor((rack - others) / slotsOf(L.loadout[i].aid))); };
@@ -97,12 +99,12 @@
       div({ className: 'sec' }, 'Munições (' + used + '/' + rack + ' unid.)'),
       div({ className: 'form' },
         L.loadout.map((r, i) => div({ className: 'row', key: i },
-          h(AmmoSel, { v: r.aid, on: v => setRow(i, 'aid', v), ammos: s.ammos }),
+          h(AmmoSel, { v: pool.some(a => a.id === r.aid) ? r.aid : '', on: v => setRow(i, 'aid', v), ammos: pool }),
           h(Num, { v: r.n, on: v => setRow(i, 'n', Math.max(0, Math.min(maxFor(i), Math.round(v)))), step: 1, w: 56 }),
           button({ className: 'danger', onClick: () => setLobby({ loadout: L.loadout.filter((_, j) => j !== i) }) }, '×'))),
-        L.loadout.length < 4 ? button({ onClick: () => setLobby({ loadout: [...L.loadout, { aid: s.ammos[0].id, n: Math.max(0, rack - used) }] }) }, '+ Tipo de munição') : null,
+        L.loadout.length < 4 ? button({ onClick: () => setLobby({ loadout: [...L.loadout, { aid: pool[0].id, n: Math.max(0, rack - used) }] }) }, '+ Tipo de munição') : null,
         used > rack ? div({ className: 'warn' }, '⚠ Passou do limite do paiol: o excesso será cortado.') : null,
-        div({ className: 'hint' }, 'As munições (inclusive as que você criar na aba 🔩) são ajustadas ao calibre e à velocidade do cano do tanque escolhido.')),
+        div({ className: 'hint' }, (dom === 'air' ? 'Munições de AERONAVE (canhão, foguetes, mísseis e ar-ar). ' : 'Munições de TANQUES E VEÍCULOS (separadas das de helicóptero). ') + 'As munições (inclusive as que você criar na aba 🔩) são ajustadas ao calibre do canhão; mísseis e foguetes têm calibre fixo.')),
       div({ className: 'sec' }, 'Partida'),
       div({ className: 'form' },
         Row('Mapa', h(Sel, { v: L.map, on: v => setLobby({ map: v }), opts: SB.MAP_LIST.map(m => [m.id, m.name]) })),

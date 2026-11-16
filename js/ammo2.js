@@ -152,6 +152,43 @@
     ['QW-2 (SAM)', () => mkWar({ d: 71, L: 1550, Ln: 200, motor: 700, wh: 'he', wall: 2 }), 650, { tntKg: 1, slots: 40, rof: 0.6, turn: 80, burn: 2 }],
     ['ADATS (SAM)', () => mkWar({ d: 152, L: 2050, Ln: 300, motor: 900, wh: 'he', wall: 3 }), 1100, { tntKg: 12, slots: 70, rof: 0.5, turn: 85, burn: 2.5 }],
   ];
+  /* ---------- munições de VEÍCULOS TERRESTRES (separadas das de helicóptero) ---------- */
+  const GATGM = [
+    ['BGM-71 TOW-2B (ataque por cima)', 'ATGM-TOP', () => mkWar({ d: 152, L: 1170, Ln: 260, motor: 450, wh: 'heat', alpha: 30 }), 280, { target: 900, slots: 36, rof: 0.3 }],
+    ['BGM-71 TOW-2A', 'ATGM-TDM', () => mkWar({ d: 152, L: 1160, Ln: 260, motor: 450, wh: 'heat', alpha: 30 }), 280, { target: 800, slots: 36, rof: 0.3 }],
+    ['9M113 Konkurs', 'ATGM', () => mkWar({ d: 135, L: 1150, Ln: 240, motor: 450, wh: 'heat', alpha: 30 }), 200, { target: 650, slots: 34, rof: 0.3 }],
+    ['9M133 Kornet', 'ATGM-TDM', () => mkWar({ d: 152, L: 1200, Ln: 260, motor: 480, wh: 'heat', alpha: 30 }), 250, { target: 1100, slots: 36, rof: 0.3 }],
+    ['Spike-LR (dispara e esquece)', 'ATGM-TOP', () => mkWar({ d: 130, L: 1000, Ln: 220, motor: 400, wh: 'heat', alpha: 30 }), 190, { target: 800, slots: 32, rof: 0.3, guid: 'lock' }],
+    ['HOT-3', 'ATGM-TDM', () => mkWar({ d: 136, L: 1300, Ln: 260, motor: 520, wh: 'heat', alpha: 30 }), 260, { target: 900, slots: 36, rof: 0.3 }],
+    ['MILAN 2T', 'ATGM-TDM', () => mkWar({ d: 115, L: 1200, Ln: 230, motor: 480, wh: 'heat', alpha: 30 }), 210, { target: 800, slots: 32, rof: 0.3 }],
+    ['FGM-148 Javelin', 'ATGM-TOP', () => mkWar({ d: 127, L: 1100, Ln: 230, motor: 420, wh: 'heat', alpha: 30 }), 150, { target: 750, slots: 32, rof: 0.3, guid: 'lock' }],
+  ];
+  const GGUN = [
+    ['7,62×51 mm NATO (metralhadora, veículo)', 'AP', () => mkShell({ d: 7.62, L: 28, Ln: 10, bt: 2 }), 850, { target: 8 }],
+    ['12,7×99 mm M8 API (veículo)', 'AP-I', () => mkShell({ d: 12.7, L: 58, Ln: 18, bt: 3, cavity: { x0: 2, x1: 10, r: 2 }, fill: 'inc' }), 890, { target: 20, tntKg: 0.0008 }],
+    ['14,5×114 mm B-32 API (KPV, veículo)', 'AP-I', () => mkShell({ d: 14.5, L: 70, Ln: 20, bt: 3, cavity: { x0: 2, x1: 12, r: 2.4 }, fill: 'inc' }), 976, { target: 32, tntKg: 0.001 }],
+    ['20×102 mm M56A3 HEI (veículo)', 'HEI', () => wrap(cyl(20, 85, 2), 'tnt'), 1030, { tntKg: 0.01 }],
+    ['20 mm M53 API (veículo)', 'AP-I', () => mkShell({ d: 20, L: 85, Ln: 22, bt: 4, cavity: { x0: 3, x1: 16, r: 3 }, fill: 'inc' }), 1030, { target: 18, tntKg: 0.002 }],
+    ['20×139 mm Rh202 HEI-T (veículo)', 'HEI', () => wrap(cyl(20, 115, 2), 'tnt'), 1100, { tntKg: 0.012 }],
+    ['23×152 mm ZU-23 HEI-T (veículo)', 'HEI', () => wrap(cyl(23, 115, 2.2), 'tnt'), 980, { tntKg: 0.015 }],
+    ['23×152 mm ZU-23 API-T (veículo)', 'AP-T', () => mkShell({ d: 23, L: 100, Ln: 26, bt: 4, cavity: { x0: 3, x1: 18, r: 3 }, fill: 'trc' }), 980, { target: 30, tntKg: 0.002 }],
+    ['25×137 mm M791 APDS-T (veículo)', 'APDS', () => mkRod({ coreD: 10, coreL: 90, noseL: 20, sabotD: 25 }), 1345, { target: 60 }],
+    ['25×137 mm M792 HEI-T (veículo)', 'HEI', () => wrap(cyl(25, 120, 2.5), 'tnt'), 1100, { tntKg: 0.02 }],
+    ['30×165 mm 2A42 HE-FRAG-T (veículo)', 'HE-FRAG', () => wrap(cyl(30, 165, 2.5), 'tnt'), 970, { tntKg: 0.045 }],
+    ['30×165 mm 2A42 AP-T (veículo)', 'AP-T', () => mkShell({ d: 30, L: 140, Ln: 36, bt: 5, cavity: { x0: 3, x1: 20, r: 4 }, fill: 'trc' }), 970, { target: 45, tntKg: 0.002 }],
+    ['30×173 mm M789 HEDP (veículo)', 'HEAT-MP', () => mkHeat({ d: 30, L: 113, Ln: 35, wall: 1.2, alpha: 30, base: 18 }), 805, { target: 50, tntKg: 0.02 }],
+    ['35×228 mm KDG HEI-T (veículo)', 'HEI', () => wrap(cyl(35, 150, 3), 'tnt'), 1175, { tntKg: 0.06 }],
+    ['35×228 mm AHEAD (explosão programada)', 'HE-ABM', () => wrap(cyl(35, 230, 3), 'tnt'), 1050, { tntKg: 0.02, pellets: 152 }],
+    ['40×311R Bofors HE-VT (proximidade, veículo)', 'HE-VT', () => wrap(cyl(40, 250, 3.5), 'tnt'), 1000, { tntKg: 0.1 }],
+    ['40×311R Bofors HEI-T (veículo)', 'HEI', () => wrap(cyl(40, 250, 3.5), 'tnt'), 1000, { tntKg: 0.12 }],
+    ['57×348R S-60 HE-FRAG-T (veículo)', 'HE-FRAG', () => wrap(cyl(57, 350, 4), 'tnt'), 1000, { tntKg: 0.3 }],
+    ['57×348R S-60 APC-T (veículo)', 'APC', () => mkShell({ d: 57, L: 230, Ln: 60, bt: 6, cap: 15 }), 1000, { target: 140 }],
+  ];
+  const GSAM = [
+    ['FIM-92 Stinger (SAM veículo)', () => mkWar({ d: 70, L: 1500, Ln: 200, motor: 800, wh: 'he', wall: 2 }), 700, { tntKg: 0.4, slots: 40, rof: 0.5, turn: 80, burn: 2 }],
+    ['9K38 Igla (SAM veículo)', () => mkWar({ d: 72, L: 1700, Ln: 220, motor: 900, wh: 'he', wall: 2 }), 600, { tntKg: 0.5, slots: 40, rof: 0.5, turn: 80, burn: 2 }],
+    ['Mistral (SAM veículo)', () => mkWar({ d: 90, L: 1800, Ln: 240, motor: 900, wh: 'he', wall: 2 }), 800, { tntKg: 1.0, slots: 44, rof: 0.5, turn: 85, burn: 2.5 }],
+  ];
   const slug = s => 'p-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   function make(sym, name, layers, v0, ex, info) {
     const a = SB._b.ammo(name, sym, layers, v0, { builtin: true });
@@ -171,7 +208,10 @@
       const r = f(); const nm = c.s + ' · ' + c.n;
       out.push(make(c.s, nm, r[0], r[1], r[2], { s: c.s, y: c.y, m: c.m, fx: c.fx }));
     });
-    HELI.forEach(h => { const r = h[2](); out.push(make(h[1], h[0], r, h[3], h[4], { s: h[1], heli: true })); });
+    HELI.forEach(h => { const r = h[2](); const a = make(h[1], h[0], r, h[3], h[4], { s: h[1], heli: true }); a.domain = 'air'; out.push(a); });
+    GATGM.forEach(h => { const a = make(h[1], h[0], h[2](), h[3], Object.assign({ fixedCal: true }, h[4]), { s: h[1], gATGM: true }); a.domain = 'ground'; out.push(a); });
+    GGUN.forEach(h => { const a = make(h[1], h[0], h[2](), h[3], h[4], { s: h[1], gGun: true }); a.domain = 'ground'; out.push(a); });
+    GSAM.forEach(h => { const a = make('AAM', h[0], h[1](), h[2], Object.assign({ fixedCal: true }, h[3]), { s: 'AAM', sam: true }); a.domain = 'ground'; out.push(a); });
     SAM.forEach(h => { const r = h[1](); out.push(make('AAM', h[0], r, h[2], Object.assign({ fixedCal: true }, h[3]), { s: 'AAM', sam: true })); });
     return out;
   };

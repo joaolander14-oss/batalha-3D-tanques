@@ -9,7 +9,7 @@
 
   /* ---------------- util ---------------- */
   function defaultLoadout(stats) {
-    const P = SB.ammoLib ? SB.ammoLib() : SB.AMMO_PRESETS(), pick = t => P.find(a => a.type === t && a.builtin) || P.find(a => a.type === t) || P[0];
+    const P = (SB.ammoLib ? SB.ammoLib() : SB.AMMO_PRESETS()).filter(a => (a.domain || 'ground') === (stats.kind === 'heli' ? 'air' : 'ground')), pick = t => P.find(a => a.type === t && a.builtin) || P.find(a => a.type === t) || P[0];
     if (stats.kind === 'heli') {
       const nm = (t) => P.find(a => a.name && a.name.indexOf(t) >= 0) || P[0], allow = stats.wp || 'grma', c = stats.cal;
       const gun = c >= 28 ? nm(c >= 38 ? '30×165 mm 2A42 HE-FRAG-T' : '30×165 mm 2A42 HE-FRAG-T') : c >= 20 ? nm('20×102') : nm('12,7×99');
@@ -22,17 +22,19 @@
     }
     if (stats.rof) {
       const nm = t => P.find(a => a.name && a.name.indexOf(t) >= 0) || P[0], c = stats.cal; let g1, g2;
-      if (c <= 14.6) g1 = nm('12,7×99'); else if (c <= 26) { g1 = nm('20×102'); g2 = nm('20 mm M53'); } else if (c <= 45) { g1 = nm('30×165 mm 2A42 HE-FRAG-T'); g2 = nm('30×165 mm 2A42 AP-T'); }
+      if (c <= 8) g1 = nm('7,62×51'); else if (c <= 13) g1 = nm('12,7×99'); else if (c <= 15) g1 = nm('14,5×114'); else if (c <= 21) { g1 = nm('20×102'); g2 = nm('20 mm M53'); } else if (c <= 24) { g1 = nm('23×152 mm ZU-23 HEI'); g2 = nm('23×152 mm ZU-23 API'); } else if (c <= 28) { g1 = nm('25×137 mm M792'); g2 = nm('25×137 mm M791'); } else if (c <= 33) { g1 = nm('30×165 mm 2A42 HE-FRAG-T'); g2 = nm('30×165 mm 2A42 AP-T'); } else if (c <= 37) { g1 = nm('35×228 mm KDG'); g2 = nm('35×228 mm AHEAD'); } else if (c <= 45) { g1 = nm('40×311R Bofors HE-VT'); g2 = nm('40×311R Bofors HEI-T'); } else if (c <= 60 && c >= 50) { g1 = nm('57×348R S-60 HE-FRAG-T'); g2 = nm('57×348R S-60 APC-T'); }
       else { g1 = P.find(a => a.type === 'HE-FRAG' && a.builtin && !(a.info && a.info.heli)) || P[0]; g2 = P.find(a => a.type === 'APHE' && a.builtin) || P[0]; }
       const out = []; let used = 0; const add = (a, n) => { if (!a || n <= 0) return; const sl = a.slots || 1, k = Math.min(n, Math.floor(Math.max(0, stats.rack - used) / sl)); if (k > 0) { out.push({ ammo: a, n: k }); used += k * sl; } };
       const samA = stats.sam ? nm(stats.samName || 'Stinger') : null, gunUnits = Math.max(10, stats.rack - (stats.sam || 0) * (samA ? samA.slots || 40 : 40) - (stats.atgm || 0) * 36);
       add(g1, Math.round(gunUnits * (g2 ? 0.65 : 1))); if (g2) add(g2, Math.round(gunUnits * 0.35));
-      if (stats.atgm) add(nm(stats.atgmName || '9M114'), stats.atgm); if (stats.sam) add(samA, stats.sam);
+      if (stats.atgm) add(nm(stats.atgmName || 'TOW-2B'), stats.atgm); if (stats.sam) add(samA, stats.sam);
       return out;
     }
     const main = stats.cal >= 105 ? 'APFSDS' : stats.cal >= 85 ? 'APCBC' : 'APCBC';
     const L = [{ ammo: pick(main), n: 0 }, { ammo: pick('HEAT'), n: 0 }, { ammo: pick('HE'), n: 0 }];
-    const r = stats.rack; L[0].n = Math.round(r * 0.5); L[1].n = Math.round(r * 0.25); L[2].n = r - L[0].n - L[1].n; return L;
+    const atg = stats.atgm ? (P.find(x => x.name && x.name.indexOf(stats.atgmName || 'TOW-2B') >= 0) || null) : null;
+    const r = stats.rack - (atg ? stats.atgm * (atg.slots || 36) : 0); L[0].n = Math.round(r * 0.5); L[1].n = Math.round(r * 0.25); L[2].n = r - L[0].n - L[1].n;
+    if (atg) L.push({ ammo: atg, n: stats.atgm }); return L;
   }
   SB.defaultLoadout = defaultLoadout;
 
@@ -103,7 +105,7 @@
     };
     ent.ammo = (spec.loadout || defaultLoadout(ent.st)).filter(l => l.n > 0 || true).slice(0, 4).map(l => ({ src: l.ammo, A: SB.ammoForGun(l.ammo, ent.st), n: l.n, n0: l.n }));
     if (!ent.ammo.length) ent.ammo = defaultLoadout(ent.st).map(l => ({ src: l.ammo, A: SB.ammoForGun(l.ammo, ent.st), n: l.n, n0: l.n }));
-    ent.isHeli = ent.st.kind === 'heli'; ent.vy = 0; ent.repairsLeft = 3; ent.rep = null; ent.svT = 0;
+    ent.isHeli = ent.st.kind === 'heli'; ent.vy = 0; ent.fireLeft = 2; ent.apsLeft = 3; ent.smokeLeft = 2; ent.repairsLeft = 3; ent.rep = null; ent.svT = 0;
     ent.rad = ent.isHeli ? 0.5 * ent.st.bodyLen + 1.5 : 0.5 * Math.hypot(ent.st.bodyLen, ent.st.bodyWid) + 0.8;
     buildObj(ent); B.scene.add(ent.G);
     ent.stat = evalDmg(ent);
@@ -137,8 +139,10 @@
     if (crew.some(p => p.sub === 'driver' && r(p) >= 1)) speedF *= 0.6;
     const gunner = crew.filter(p => p.sub === 'gunner'), loader = crew.filter(p => p.sub === 'loader');
     return {
-      speedF, turnF: tD >= 1 ? 0.5 : 1, gunDead: dead('breech') || (gunner.length && gunner.every(p => r(p) >= 1) && !crew.some(p => p.sub === 'commander' && r(p) < 1)),
-      travF: (gunner.length && gunner.every(p => r(p) >= 1) ? 0.3 : 1) * (dead('drive') ? 0.2 : 1), loaderDead: loader.length > 0 && loader.every(p => r(p) >= 1),
+      hasStab: of('stab').length > 0, stabDead: dead('stab'), hasAuto: of('autoload').length > 0, autoDead: dead('autoload'), autoDmg: of('autoload').some(p => r(p) >= 0.5), ringDead: dead('ring'), lrfDead: dead('lrf'),
+      hasFireSup: of('fire').length > 0, fireSupOk: of('fire').length > 0 && !dead('fire'), hasSmokeL: of('smokel').length > 0 && !dead('smokel'), hasAps: of('aps').length > 0 && !dead('aps'),
+      speedF, turnF: tD >= 1 ? 0.5 : 1, gunDead: dead('breech') || dead('autoload') || (gunner.length && gunner.every(p => r(p) >= 1) && !crew.some(p => p.sub === 'commander' && r(p) < 1)),
+      travF: (gunner.length && gunner.every(p => r(p) >= 1) ? 0.3 : 1) * (dead('drive') ? 0.2 : 1) * (dead('ring') ? 0.04 : 1), loaderDead: loader.length > 0 && loader.every(p => r(p) >= 1),
       crew: alive.length, crewTotal: crew.length, tracksD: tD, engDead: dead('engine'), optDead: dead('optics'), dead: crew.length > 0 && alive.length < Math.min(2, crew.length),
     };
   }
@@ -205,7 +209,7 @@
  <div id="score" style="display:none"></div>
  <div id="pause" style="display:none"><h2>Pausa</h2><button id="bres">Continuar</button><button id="bshake"></button><button id="bsound"></button><button id="bexit">Sair da batalha</button></div>
  <div id="endb" style="display:none"></div>
- <div id="help">G reparar · (helicóptero: Espaço sobe, Shift desce) WASD mover · Mouse mirar · Clique atirar · Botão dir. mira · 1-4 munição · X raio-X · F extintor · C câmera · Tab placar · Esc pausa</div>
+ <div id="help">G reparar · V fumaça · (helicóptero: Espaço sobe, Shift desce) WASD mover · Mouse mirar · Clique atirar · Botão dir. mira · 1-4 munição · X raio-X · F extintor · C câmera · Tab placar · Esc pausa</div>
 </div>`;
   const $ = id => B.el.querySelector('#' + id);
   const H = { kd: null, ku: null, mm: null, md: null, mu: null, wh: null, rs: null, cm: null, pl: null };
@@ -215,6 +219,7 @@
       if (e.code >= 'Digit1' && e.code <= 'Digit4') { const i = +e.code.slice(5) - 1; if (B.me.ammo[i]) { B.me.sel = i; } }
       if (e.code === 'KeyF') extinguish(B.me);
       if (e.code === 'KeyG') startRepair(B.me);
+      if (e.code === 'KeyV') launchSmoke(B.me);
       if (e.code === 'KeyX') toggleXray();
       if (e.code === 'KeyC') B.scope = !B.scope;
       if (e.code === 'Tab') { e.preventDefault(); $('score').style.display = 'block'; renderScore(); }
@@ -309,7 +314,7 @@
     if (e.reload > 0) e.reload -= dt;
     if (c.fire && e.alive) tryFire(e);
   }
-  const reloadT = e => e.isHeli ? 0 : e.st.rof ? 1 / e.st.rof : e.st.reload * (e.stat.loaderDead ? 1.8 : 1);
+  const reloadT = e => e.isHeli ? 0 : e.st.rof ? 1 / e.st.rof : e.st.reload * (e.stat.loaderDead ? 1.8 : 1) * (e.stat.autoDmg ? 1.5 : 1);
   function muzzleInfo(e) { updateWorld(e); const p = new V3(); e.muz.getWorldPosition(p); const q = new Q(); e.U.getWorldQuaternion(q); return { p, d: new V3(0, 0, -1).applyQuaternion(q) }; }
   function pylonPos(e) {
     updateWorld(e); const pl = e.st.pylons && e.st.pylons.length ? e.st.pylons[(e.pyi = ((e.pyi || 0) + 1) % e.st.pylons.length)] : [0, 1, 0];
@@ -331,14 +336,14 @@
     e.reload = e.isHeli ? 1 / (A.rof || (wc === 'gun' ? 10 : wc === 'rocket' ? 4 : 0.35)) : (e.st.rof && wc !== 'gun') ? 1 / (A.rof || 0.35) : reloadT(e);
     let p, d;
     if (e.isHeli && wc !== 'gun') { const mi = muzzleInfo(e); d = mi.d; p = pylonPos(e); } else { const mi = muzzleInfo(e); p = mi.p; d = mi.d; }
-    const sig = (wc === 'gun' ? 0.0005 : wc === 'rocket' ? 0.004 : 0.0003) + Math.abs(e.v) * 0.0003 + (e.bot ? 0.0008 : 0) + (e.isHeli && wc === 'gun' ? 0.004 : 0) + (e.st.rof && wc === 'gun' ? 0.003 : 0);
+    const sig = (wc === 'gun' ? 0.0005 : wc === 'rocket' ? 0.004 : 0.0003) + Math.abs(e.v) * 0.0003 * (e.stat.hasStab && !e.stat.stabDead ? 0.15 : 1) + (e.bot ? 0.0008 : 0) + (e.isHeli && wc === 'gun' ? 0.004 : 0) + (e.st.rof && wc === 'gun' ? 0.003 : 0);
     d.x += (Math.random() - 0.5) * sig * 2; d.y += (Math.random() - 0.5) * sig * 2; d.z += (Math.random() - 0.5) * sig * 2; d.normalize();
     const v0 = wc === 'gun' ? A.v0 : A.v0 * (wc === 'rocket' ? 0.5 : 0.3);
     const ex = { id: e.eid + '#' + (++SID) };
     if (A.guid) { ex.lock = (A.guid === 'lock' || A.guid === 'ir') ? chooseLock(e, A, p, d) : null; if (A.guid === 'ir' && !ex.lock) { slot.n++; e.reload = 0.3; if (e === B.me) toast('AAM: sem aeronave inimiga na mira.', 1.5); return false; } }
     if (A.burst === 'time' || A.burst === 'abm' || A.burst === 'cluster') { const tgR = e === B.me ? B.aimR : (e.ai && e.ai.tg ? Math.hypot(e.ai.tg.x - e.x, e.ai.tg.z - e.z) : 600); ex.ba = Math.max(40, tgR - 3); }
     spawnShell(e.eid, e.sel, A, p, d.clone().multiplyScalar(v0), ex);
-    if (!(e.st.rof || (e.isHeli && wc === 'gun')) || ((e.nf = (e.nf || 0) + 1) % 4 === 0)) SB.FX.muzzle(p, d, wc === 'gun' ? Math.min(1.5, e.st.cal / 120) : 0.8);
+    SB.Visual.muzzle(A, p, d, e);
     if (!e.isHeli && !e.st.rof) { e.v -= 0.2 * Math.sign(e.v || 1); if (e === B.me) addShake(0.14); } else if (e === B.me) addShake(wc === 'gun' ? 0.015 : 0.06);
     SB.Net.send({ t: 'f', e: e.eid, a: e.sel, p: [p.x, p.y, p.z], v: [d.x * v0, d.y * v0, d.z * v0], id: ex.id, lk: ex.lock || null, ba: ex.ba || 0 });
     return true;
@@ -346,10 +351,10 @@
   function spawnShell(eid, ai, A, p, vel, ex) {
     ex = ex || {};
     const big = A.wc === 'rocket' || A.wc === 'missile' || A.wc === 'aam';
-    const m = new THREE.Mesh(big ? new THREE.CylinderGeometry(Math.min(0.5, 0.1 + A.d / 900), Math.min(0.5, 0.1 + A.d / 900), Math.min(3, 0.8 + A.L / 900), 6) : new THREE.SphereGeometry(0.22, 6, 4), new THREE.MeshBasicMaterial({ color: A.wc === 'missile' ? 0xffffff : A.wc === 'rocket' ? 0xffb050 : 0xffe08a }));
-    m.position.copy(p); if (big) m.lookAt(p.clone().add(vel)); B.tracers.add(m);
+    const vis = SB.Visual.make(A), m = vis.mesh;
+    m.position.copy(p); B.tracers.add(m);
     const s = { owner: eid, ai, A, pos: p.clone(), vel, age: 0, mesh: m, dist: 0, id: ex.id || (eid + '#' + (++SID)), lock: ex.lock || null, ba: ex.ba || 0, rocket: A.wc === 'rocket', guid: A.guid || (A.wc === 'missile' ? 'sacls' : null), trail: 0 };
-    s.big = big; const own = B.ents.get(eid); s.mine = !!own && own.owner === B.myPeer;
+    s.big = big; s.st = vis.style; const own = B.ents.get(eid); s.mine = !!own && own.owner === B.myPeer;
     B.shells.push(s); return s;
   }
 
@@ -382,7 +387,6 @@
         if (s.rocket && !s.guid) { dir.y -= G * 0.12 * dt / Math.max(tgt, 50); dir.normalize(); }
         if (s.guid) dir = guideDir(s, dir, dt);
         s.vel.copy(dir.multiplyScalar(tgt));
-        s.trail -= dt; if (s.trail <= 0) { s.trail = 0.15; if (B.camera.position.distanceTo(s.pos) < 700) SB.FX.smoke(s.pos.clone(), 1, false); }
       } else { s.vel.multiplyScalar(Math.exp(-A.k * v * dt)); s.vel.y -= G * dt; }
       const p0 = s.pos, d = s.vel.clone(), sp = d.length(); d.multiplyScalar(1 / sp); const len = sp * dt;
       s.dist += len;
@@ -392,12 +396,14 @@
         if (!e.alive || (e.eid === s.owner && s.age < 0.5) || (ir && !e.isHeli)) continue;
         const c = new V3(e.x, e.y + 1.3, e.z), oc = c.clone().sub(p0), tp = oc.dot(d), dd = oc.lengthSq() - tp * tp;
         // espoletas de proximidade e ataque por cima (EFP)
+        if (!s.dead && apsCheck(s, e)) { s.dead = 'aps'; break; }
         if (!s.dead && (A.burst === 'prox' || ir) && c.distanceTo(p0) < (ir ? 9 : 6.5) && s.age > 0.3) { s.dead = 'burst'; break; }
         if (A.guid === 'over' && s.age > 0.4 && Math.hypot(e.x - p0.x, e.z - p0.z) < 3.8 && p0.y - e.y > 1.2 && p0.y - e.y < 14) { s.dead = 'efp'; s.tgt = e; break; }
         if (dd > e.rad * e.rad || tp < -e.rad || tp > len + e.rad) continue;
         updateWorld(e); const t0 = SB.Sim.probe(SB.Sim.prepare({ parts: e.wparts }), p0, d);
         if (t0 != null && t0 <= len + 0.02 && (!best || t0 < best.t)) best = { t: t0, ent: e };
       }
+      if (s.dead === 'aps') { removeShell(i); continue; }
       if (s.dead === 'burst') { burstAt(s, p0.clone()); removeShell(i); continue; }
       if (s.dead === 'efp') { topAttack(s, s.tgt, p0.clone()); removeShell(i); continue; }
       if (s.ba && s.dist >= s.ba) { burstAt(s, p0.clone()); removeShell(i); continue; }
@@ -405,11 +411,11 @@
       for (let k = 1; k <= n; k++) { const t = len * k / n, x = p0.x + d.x * t, y = p0.y + d.y * t, z = p0.z + d.z * t; if (B.map.H(x, z) > y || B.map.hit(x, y, z)) { gt = t; break; } }
       if (best && (gt == null || best.t <= gt)) { hitTank(s, best.ent, p0.clone(), d, sp); removeShell(i); continue; }
       if (gt != null) { const hp = p0.clone().addScaledVector(d, gt); groundImpact(s, hp); removeShell(i); continue; }
-      s.pos.addScaledVector(d, len); s.mesh.position.copy(s.pos); if (s.big) s.mesh.lookAt(s.pos.clone().add(d));
+      const prevP = s.pos.clone(); s.pos.addScaledVector(d, len); SB.Visual.update(s, d, prevP);
       if (s.age > (powered ? 40 : 14) || s.pos.y < -80 || Math.abs(s.pos.x) > B.map.half + 300 || Math.abs(s.pos.z) > B.map.half + 300) removeShell(i);
     }
   }
-  function removeShell(i) { const s = B.shells[i]; B.tracers.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.material.dispose(); B.shells.splice(i, 1); }
+  function removeShell(i) { const s = B.shells[i]; B.tracers.remove(s.mesh); SB.Visual.dispose(s.mesh); B.shells.splice(i, 1); }
 
   /* fumaça / luz */
   function smokeAt(p, A) {
@@ -419,7 +425,7 @@
   }
   /* dano de sopro/fragmentos para os meus tanques perto de um ponto */
   function burstAt(s, p) {
-    const A = s.A; SB.FX.explosion(p, 0.5 + Math.cbrt(Math.max(A.tnt, 0.02)) * (A.blast || 1) * 0.8);
+    const A = s.A; SB.Visual.impact(A, p, 'air');
     if (A.smoke || A.illum) { smokeAt(p, A); if (!A.fireP) return; }
     if (A.sub) { clusterAt(s, p); return; }
     explodeAround(s, p, A);
@@ -461,13 +467,13 @@
     const A = s.A, T = SB.TYPE[A.type]; const near = p.distanceTo(B.camera.position) < 600;
     const boom = T.fam === 'he' || T.fam === 'hesh' || T.fam === 'heat' || A.sub || A.tb > 1 || A.blast > 1;
     if (A.smoke || A.illum) { smokeAt(p, A); if (!A.fireP) return; }
-    if (boom) { SB.FX.explosion(p, 0.5 + Math.cbrt(Math.max(A.tnt, 0.02)) * (A.blast || 1) * 0.8); if (A.sub) clusterAt(s, p); else explodeAround(s, p.clone().add(new V3(0, 0.7, 0)), A); } else SB.FX.dust(p, 8);
+    if (boom) { SB.Visual.impact(A, p, 'ground'); if (A.sub) clusterAt(s, p); else explodeAround(s, p.clone().add(new V3(0, 0.7, 0)), A); } else SB.Visual.impact(A, p, 'ground');
     if (near) addShake(0.1 + (A.tnt > 5 ? 0.3 : 0), p);
   }
 
   function hitTank(s, ent, p0, d, sp) {
     const A = s.A;
-    SB.FX.sparks(p0.clone().addScaledVector(d, 0.1), 6);
+    SB.Visual.impact(A, p0.clone().addScaledVector(d, 0.1), 'tank', d);
     if (A.smoke || A.illum) { smokeAt(p0.clone(), A); if (!A.fireP) return; }
     if (A.sub) { SB.FX.explosion(p0, 0.8); clusterAt(s, p0.clone().add(new V3(0, 3, 0))); return; }
     if (ent.owner === B.myPeer) hitTankSim(s, ent, p0, d, sp, A);
@@ -522,9 +528,9 @@
     if (ent.owner === B.myPeer) ent.respawn = 10;
     if (SB.Net.mode === 'host' || SB.Net.mode === 'off') checkEnd();
   }
-  function extinguish(e) { if (!e.burning || e.ext <= 0) return; e.ext--; if (Math.random() < 0.75) { e.burning = false; toast('Incêndio apagado!', 2); } else toast('Extintor falhou!', 2); }
+  function extinguish(e) { if (!e.burning || e.ext <= 0) return; e.ext--; if (Math.random() < 0.75) { e.burning = false; SB.Net.send({ t: 'ext', e: e.eid }); toast('Incêndio apagado!', 2); } else toast('Extintor falhou!', 2); }
   function respawnEnt(e, x, z, yaw) {
-    e.alive = true; e.repairsLeft = 3; e.rep = null; e.svT = 0; e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.reload = 3; e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); e.det = false;
+    e.alive = true; e.fireLeft = 2; e.apsLeft = 3; e.smokeLeft = 2; e.repairsLeft = 3; e.rep = null; e.svT = 0; e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.reload = 3; e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); e.det = false;
     e.mats.body.color.setHex(PAINT[e.def.nation || 'Customizado'] || 0x6d7163); e.mats.body.emissive.copy(new THREE.Color(TEAMCOL[e.team]).multiplyScalar(0.07));
     e.T.position.set(...e.st.turPivot); e.T.rotation.set(0, 0, 0); e.tv = null; e.respawn = 0; e.tYaw = 0; e.gP = 0; e.snap = null; e.pen = null; placeAt(e, x, z, yaw);
     if (e === B.me) { B.camYaw = yaw; }
@@ -546,7 +552,7 @@
   const lowSupplies = e => { const t0 = e.ammo.reduce((a, s) => a + s.n0, 0) || 1, t = e.ammo.reduce((a, s) => a + s.n, 0); return t / t0 < 0.25 || e.stat.speedF < 0.6 || e.stat.gunDead || e.stat.crew < e.stat.crewTotal - 1; };
   const isSlow = e => e.isHeli ? (Math.abs(e.v) < 6 && e.y - B.map.H(e.x, e.z) < 7) : Math.abs(e.v) < 1.6;
   function fullService(e) {
-    e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.pen = null; e.repairsLeft = 3; e.rep = null;
+    e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.pen = null; e.repairsLeft = 3; e.fireLeft = 2; e.apsLeft = 3; e.smokeLeft = 2; e.rep = null;
     e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); SB.Net.send({ t: 'rep', e: e.eid, f: 1 });
     if (e === B.me) toast('✔ Reabastecido e reparado por completo!', 2.5);
   }
@@ -604,6 +610,25 @@
       z.beam.material.color.copy(c); z.ring.material.color.copy(c); z.flag.material.color.copy(c);
     });
   }
+  function launchSmoke(e) {
+    const left = e.smokeLeft == null ? 2 : e.smokeLeft;
+    if (!e.alive || !e.stat.hasSmokeL || left <= 0 || B.t - (e.smokeT || -99) < 1) return false;
+    e.smokeLeft = left - 1; e.smokeT = B.t; const a = e.yaw + e.tYaw, pts = [];
+    for (let k = -1; k <= 1; k++) { const ang = a + k * 0.45, p = new V3(e.x - Math.sin(ang) * 30, e.y + 1.5, e.z - Math.cos(ang) * 30); B.smokes.push({ p, r: 13, t: 24 }); SB.FX.smoke(p.clone(), 10, false); pts.push([p.x, p.y, p.z]); }
+    SB.Net.send({ t: 'smk', p: pts }); if (e === B.me) toast('💨 Granadas fumígenas lançadas (' + e.smokeLeft + ' restantes)', 2);
+    return true;
+  }
+  function apsCheck(s, e) {
+    if (!e.stat.hasAps || e.owner !== B.myPeer || e.eid === s.owner) return false;
+    const A = s.A; if (!(A.wc !== 'gun' || A.fam === 'heat')) return false;
+    if ((e.apsLeft == null ? 3 : e.apsLeft) <= 0 || B.t - (e.apsT || -9) < 1) return false;
+    const c = new V3(e.x, e.y + 1.5, e.z), to = c.clone().sub(s.pos);
+    if (to.length() > 17 || s.vel.dot(to) <= 0) return false;
+    e.apsLeft = (e.apsLeft == null ? 3 : e.apsLeft) - 1; e.apsT = B.t;
+    SB.FX.explosion(s.pos.clone(), 0.5); SB.Net.send({ t: 'aps', id: s.id, e: e.eid, p: [s.pos.x, s.pos.y, s.pos.z] });
+    if (e === B.me) toast('🛡 APS interceptou ' + (A.wc === 'gun' ? 'um projétil HEAT' : 'um míssil/foguete') + '! (' + e.apsLeft + ' cargas)', 2.5);
+    return true;
+  }
   function scoreAmmo(A, r, tg) {
     if (A.wc === 'aam' && !(tg && tg.isHeli)) return -1; if (A.smoke || A.illum || A.inert) return -1;
     if (tg && tg.isHeli) return A.burst ? 100 + A.tnt * 10 : A.fam === 'he' ? 60 : SB.nominalPen(A, r) * 0.2;
@@ -653,6 +678,7 @@
   function aiThink(e, dt) {
     if (e.isHeli) return aiHeli(e, dt);
     const ai = e.ai || (e.ai = { t: 0, tg: null, wp: null, err: 0 });
+    if (B.t - (e.hitT || -99) < 1.5 && e.stat.hasSmokeL && Math.random() < 0.2) launchSmoke(e);
     const pos = new V3(e.x, e.y + 2, e.z);
     ai.t -= dt;
     if (ai.t <= 0) {
@@ -707,7 +733,7 @@
       // ponto mirado pela câmera
       const cd = camDir(), co = camOrigin(cd), hit = rangeAlong(co, cd);
       B.aimR = hit.r; B.aimPt = hit.p; const tp = new V3(me.x, me.y + 2.3, me.z); const aimPt = hit.p; const dv = aimPt.clone().sub(tp), hd = Math.hypot(dv.x, dv.z), A = me.ammo[me.sel].A;
-      c.aimYaw = Math.atan2(-dv.x, -dv.z); c.aimPitch = Math.atan2(dv.y, hd) + droop(A, Math.max(30, dv.length()));
+      c.aimYaw = Math.atan2(-dv.x, -dv.z); c.aimPitch = Math.atan2(dv.y, hd) + droop(A, me.stat.lrfDead ? Math.max(30, Math.round(dv.length() / 150) * 150 * (1 + Math.sin(B.t * 0.7) * 0.12)) : Math.max(30, dv.length()));
     } else { me.ctl.thr = 0; me.ctl.steer = 0; me.ctl.fire = false; }
     const stuckInput = B.keys;
     for (const e of B.ents.values()) {
@@ -737,7 +763,7 @@
         poseEnt(e, 1);
       }
     }
-    if (e.burning && e.alive) { e.burn += dt; SB.FX.fire(new V3(e.x, e.y + 2, e.z), 1); SB.FX.smoke(new V3(e.x, e.y + 2.5, e.z), 1, true); if (e.owner === B.myPeer) { if (e.bot && e.burn > 3 && e.ext > 0) extinguish(e); if (e.burn > (e.isHeli ? 9 : 18) && e.burning) { e.burning = false; selfKill(e, 'Queimou'); } } }
+    if (e.burning && e.alive) { e.burn += dt; if (e.owner === B.myPeer && e.stat.fireSupOk && (e.fireLeft == null || e.fireLeft > 0) && e.burn > 1.6) { e.burning = false; e.fireLeft = (e.fireLeft == null ? 2 : e.fireLeft) - 1; SB.Net.send({ t: 'ext', e: e.eid }); if (e === B.me) toast('🧯 Supressão automática de incêndio acionada!', 2.5); } SB.FX.fire(new V3(e.x, e.y + 2, e.z), 1); SB.FX.smoke(new V3(e.x, e.y + 2.5, e.z), 1, true); if (e.owner === B.myPeer) { if (e.bot && e.burn > 3 && e.ext > 0) extinguish(e); if (e.burn > (e.isHeli ? 9 : 18) && e.burning) { e.burning = false; selfKill(e, 'Queimou'); } } }
     if (!e.alive) { e.deadT += dt; if (e.deadT < 30 && Math.random() < dt * 8) SB.FX.smoke(new V3(e.x, e.y + 2, e.z), 1, true); if (e.det && e.tv) { e.tv.y -= 20 * dt; e.tOff.addScaledVector(e.tv, dt); if (e.tOff.y < 0 && e.tv.y < 0) { e.tOff.y = 0; e.tv = null; } e.T.position.set(e.st.turPivot[0] + e.tOff.x, e.st.turPivot[1] + e.tOff.y, e.st.turPivot[2] + e.tOff.z); e.T.rotation.z += dt * 2; } }
   }
   function remoteStep(e, dt) {
@@ -760,11 +786,14 @@
     if (!B) { SB.Lobby && SB.Lobby.onMsg && SB.Lobby.onMsg(m, from); return; }
     switch (m.t) {
       case 's': m.a.forEach(r => { const e = B.ents.get(r[0]); if (!e || e.owner === B.myPeer) return; const sn = { x: r[1], z: r[2], yaw: r[3], tYaw: r[4], gP: r[5], v: r[6], y: r[7] }; if (!e.snap) { e.x = sn.x; e.z = sn.z; e.yaw = sn.yaw; e.tYaw = sn.tYaw; e.gP = sn.gP; } e.snap = sn; }); break;
-      case 'f': { const e = B.ents.get(m.e); if (!e || e.owner === B.myPeer) break; const sl = e.ammo[m.a]; if (!sl) break; sl.n = Math.max(0, sl.n - 1); const p = new V3(...m.p); spawnShell(m.e, m.a, sl.A, p, new V3(...m.v), { id: m.id, lock: m.lk, ba: m.ba }); if (!e.st.rof || Math.random() < 0.25) SB.FX.muzzle(p, new V3(...m.v).normalize(), sl.A.wc === 'gun' ? Math.min(1.5, e.st.cal / 120) : 0.8); break; }
+      case 'f': { const e = B.ents.get(m.e); if (!e || e.owner === B.myPeer) break; const sl = e.ammo[m.a]; if (!sl) break; sl.n = Math.max(0, sl.n - 1); const p = new V3(...m.p); spawnShell(m.e, m.a, sl.A, p, new V3(...m.v), { id: m.id, lock: m.lk, ba: m.ba }); SB.Visual.muzzle(sl.A, p, new V3(...m.v).normalize(), e); break; }
       case 'm': m.a.forEach(r => { const q = B.shells.find(x => x.id === r[0]); if (q && !q.mine) { q.pos.set(r[1], r[2], r[3]); q.vel.set(r[4], r[5], r[6]); } }); break;
       case 'd': { const ent = B.ents.get(m.e); if (ent && ent.owner !== B.myPeer) showHit(m, false); break; }
       case 'r': { const e = B.ents.get(m.e); if (e && e.owner !== B.myPeer) respawnEnt(e, m.x, m.z, m.yaw); break; }
       case 'end': showEnd(m.w); break;
+      case 'ext': { const e = B.ents.get(m.e); if (e && e.owner !== B.myPeer) e.burning = false; break; }
+      case 'smk': m.p.forEach(p => { const v = new V3(...p); B.smokes.push({ p: v, r: 13, t: 24 }); SB.FX.smoke(v.clone(), 10, false); }); break;
+      case 'aps': { const i = B.shells.findIndex(q => q.id === m.id); if (i >= 0) removeShell(i); SB.FX.explosion(new V3(...m.p), 0.5); break; }
       case 'z': if (B.cfg.mode === 'client') { m.c.forEach((c, i) => { if (B.zones[i]) { B.zones[i].cap = c; B.zones[i].owner = m.o[i] || null; } }); B.pts.A = m.p[0]; B.pts.B = m.p[1]; } break;
       case 'rep': { const e = B.ents.get(m.e); if (!e || e.owner === B.myPeer) break; if (m.f) { e.dmg = {}; e._dead = {}; e.burning = false; e.pen = null; e.ammo.forEach(a => { a.n = a.n0; }); } else e.def.parts.forEach(p => { if (p.kind !== 'armor' && p.kind !== 'crew') delete e.dmg[p.id]; }); e.stat = evalDmg(e); break; }
       case 'abort': case 'hostLeft': toast('O anfitrião encerrou a partida.', 3); setTimeout(() => stop(), 1500); break;
@@ -916,7 +945,7 @@
     $('feed').innerHTML = B.feed.filter(f => B.t - f.at < 12).map(f => '<div style="color:' + TEAMCOL[f.team] + '">' + f.t + '</div>').join('');
     $('spd').textContent = Math.round(Math.abs(me.v) * 3.6) + ' km/h' + (me.isHeli ? ' · alt ' + Math.round(me.y - B.map.H(me.x, me.z)) + ' m' : '') + '  |  ' + me.def.name;
     $('rng').textContent = 'alcance: ' + (B.aimR >= 3200 ? '--' : Math.round(B.aimR) + ' m') + (me.burning ? '   🔥 INCÊNDIO (F)' : '') + (!me.alive ? '   ☠ reaparece em ' + Math.ceil(me.respawn) + ' s' : '');
-    const s = me.stat; $('crewl').textContent = 'Tripulação ' + s.crew + '/' + s.crewTotal + (s.gunDead ? ' · CANHÃO FORA' : '') + (s.rotorDead ? ' · ROTOR PERDIDO' : '') + (s.tailDead ? ' · ROTOR DE CAUDA PERDIDO' : '') + (s.speedF === 0 ? ' · IMOBILIZADO' : s.speedF < 0.7 ? ' · AVARIADO' : '');
+    const s = me.stat; $('crewl').innerHTML = 'Tripulação ' + s.crew + '/' + s.crewTotal + (s.gunDead ? ' · CANHÃO FORA' : '') + (s.rotorDead ? ' · ROTOR PERDIDO' : '') + (s.tailDead ? ' · ROTOR DE CAUDA PERDIDO' : '') + (s.speedF === 0 ? ' · IMOBILIZADO' : s.speedF < 0.7 ? ' · AVARIADO' : '') + (function () { const sy = []; if (s.hasStab) sy.push('Estabilizador ' + (s.stabDead ? '✖' : '✔')); if (s.hasAuto) sy.push('Autoloader ' + (s.autoDead ? '✖' : s.autoDmg ? '⚠' : '✔')); if (s.ringDead) sy.push('Anel da torre ✖'); if (s.lrfDead) sy.push('Telêmetro ✖'); if (s.hasFireSup) sy.push('Extintor auto ' + (me.fireLeft == null ? 2 : me.fireLeft)); if (s.hasAps) sy.push('APS ' + (me.apsLeft == null ? 3 : me.apsLeft)); if (s.hasSmokeL) sy.push('Fumaça(V) ' + (me.smokeLeft == null ? 2 : me.smokeLeft)); return sy.length ? '<br><small>' + sy.join(' · ') + '</small>' : ''; })();
     $('ammo').innerHTML = me.ammo.map((a, i) => '<div class="am' + (i === me.sel ? ' on' : '') + '"><b>' + (i + 1) + '</b> ' + ({ gun: '', rocket: '🚀 ', missile: '➶ ', aam: '✈ ' }[a.A.wc] || '') + (a.A.shortName || a.A.name) + '<br><span>' + a.A.type + ' · ' + a.n + '</span></div>').join('');
     const rt = me.isHeli ? 1 / ((me.ammo[me.sel].A.rof) || 4) : reloadT(me), rr = me.reload > 0 ? 1 - me.reload / Math.max(rt, 0.05) : 1; $('reload').firstChild.style.width = clamp(rr, 0, 1) * 100 + '%'; $('reload').style.opacity = rr < 1 ? 1 : 0.35;
     // marcador do canhão

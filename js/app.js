@@ -73,6 +73,9 @@
         Row('Rotação (°)', ...[0, 1, 2].map(i => h(Num,{ key: i, v: p.rot[i], on: v => setV('rot', i, v), step: 5, w: 62 }))),
         p.kind !== 'armor' ? Row('Vida (HP)', h(Num,{ v: p.hp, on: v => updPart(p.id, { hp: Math.max(1, v) }), step: 10 })) : null,
         p.sub === 'ammo' ? Row('Carga (kg TNT)', h(Num,{ v: p.expl || 5, on: v => updPart(p.id, { expl: v }), step: 1 })) : null,
+        p.sub === 'ammo' ? Row('Painéis de alívio (blow-out)', h('input', { type: 'checkbox', checked: !!p.blow, onChange: e => updPart(p.id, { blow: e.target.checked }) })) : null,
+        p.sub === 'ammo' ? Row('Paiol úmido (wet)', h('input', { type: 'checkbox', checked: !!p.wet, onChange: e => updPart(p.id, { wet: e.target.checked }) })) : null,
+        SB.SUBS[p.sub] && SB.SUBS[p.sub].info ? div({ className: 'hint' }, 'ℹ ' + SB.SUBS[p.sub].info) : null,
         div({ className: 'btns' }, button({ onClick: dup }, 'Duplicar'), button({ onClick: mir }, 'Espelhar X'), button({ className: 'danger', onClick: del }, 'Excluir')),
         div({ className: 'hint' }, 'Arraste as setas coloridas no 3D para mover. Espessura da placa = menor dimensão (a chapa é medida pela trajetória real do tiro).'))
         : div({ className: 'hint pad' }, 'Clique numa peça no 3D ou na lista. Frente do tanque = seta azul (−Z).'));
@@ -132,6 +135,7 @@
   }
 
   /* ---------- munição ---------- */
+  const ammoOpts = list => list.slice().sort((a, b) => (a.domain === 'air') - (b.domain === 'air')).map(x => [x.id, (x.domain === 'air' ? '🚁 ' : '') + (x.builtin ? '' : '★ ') + x.name]);
   function curAmmo() { const s = S(); return s.ammos.find(a => a.id === s.ammoId) || s.ammos[0]; }
   function editAmmo(fn) {
     const s = S(); let a = curAmmo();
@@ -146,7 +150,7 @@
     return div({ className: 'panel' },
       div({ className: 'sec' }, 'Munição',
         div({ className: 'btns' },
-          h(Sel,{ v: a.id, on: id => { Store.set({ ammoId: id, layerSel: null }); SB.Scene.showAmmo(S().ammos.find(x => x.id === id), s.cut); }, opts: s.ammos.map(x => [x.id, (x.builtin ? '' : '★ ') + x.name]) }),
+          h(Sel,{ v: a.id, on: id => { Store.set({ ammoId: id, layerSel: null }); SB.Scene.showAmmo(S().ammos.find(x => x.id === id), s.cut); }, opts: ammoOpts(s.ammos) }),
           button({ onClick: () => { const n = SB.ammoClone(a); n.id = 'u' + Math.random().toString(36).slice(2, 8); n.name = a.name + ' (cópia)'; n.builtin = false; Store.set({ ammos: [...s.ammos, n], ammoId: n.id }); saveAmmos(); SB.Scene.showAmmo(n, s.cut); } }, 'Duplicar'),
           !a.builtin ? button({ className: 'danger', onClick: () => { Store.set({ ammos: s.ammos.filter(x => x.id !== a.id), ammoId: s.ammos[0].id }); saveAmmos(); SB.Scene.showAmmo(S().ammos[0], s.cut); } }, 'Excluir') : null)),
       div({ className: 'form' },
@@ -154,6 +158,7 @@
         Row('Tipo', h(Sel,{ v: a.type, on: v => editAmmo(n => { n.type = v; }), opts: Object.entries(SB.TYPE).map(([k, v]) => [k, v.n]) })),
         Row('Vel. de saída (m/s)', h(Num,{ v: a.v0, on: v => editAmmo(n => { n.v0 = Math.max(50, v); }), step: 10 })),
         ['AP', 'APC', 'APCBC', 'APBC', 'APHE'].includes(a.type) ? [Row('Espoleta: sens. (mm)', h(Num,{ v: a.sens, on: v => editAmmo(n => { n.sens = v; }), step: 1 })), Row('Espoleta: retardo (ms)', h(Num,{ v: a.delay, on: v => editAmmo(n => { n.delay = v; }), step: 0.1 }))] : null,
+        Row('Uso', h(Sel, { v: a.domain || 'ground', on: v => editAmmo(n => { n.domain = v; }), opts: [['ground', 'Tanques e veículos terrestres'], ['air', 'Helicópteros']] })),
         Row('Classe', span({}, (SB.CLS_NAMES[(SB.TYPE[a.type] || {}).cls] || '') + (A.guid ? ' · guiada (' + A.guid + ')' : '') + (A.rocket ? ' · foguete não guiado' : ''))),
         Row('Explosivo (kg TNT, manual)', h(Num, { v: a.tntKg != null ? a.tntKg : rd(A.tnt, 3), on: v => editAmmo(n => { n.tntKg = Math.max(0, v); }), step: 0.1 })),
         Row('Calibração de penetração (×)', h(Num, { v: rd(a.pk || 1, 3), on: v => editAmmo(n => { n.pk = Math.max(0.05, v); }), step: 0.05 })),
@@ -169,7 +174,7 @@
         (SB.TYPE[a.type] || {}).sub || a.subs ? Row('Submunições', h(Num, { v: a.subs || (SB.TYPE[a.type] || {}).sub, on: v => editAmmo(n => { n.subs = Math.max(1, Math.round(v)); }), step: 1 })) : null,
         a.info ? div({ className: 'hint' }, '📄 PDF: ', h('b', null, a.info.s || ''), ' ', a.info.y || '', ' · ', a.info.m || '', ' · efeitos: ', (a.info.fx || []).join(', ')) : null,
         a.type === 'HEAT' ? Row('Qualidade do liner', h(Num,{ v: a.quality || 1, on: v => editAmmo(n => { n.quality = v; }), step: 0.05 })) : null,
-        div({ className: 'btns' }, [['Novo míssil', 'ATGM · '], ['Novo foguete', 'RKT-FRAG · '], ['Nova munição de canhão', 'AP · '], ['Nova munição de helicóptero', '30×165 mm 2A42 HE-FRAG-T']].map(([lab, pre]) => button({ key: lab, onClick: () => { const t = s.ammos.find(x => x.name.indexOf(pre) === 0); if (!t) return; const n = SB.ammoClone(t); n.id = 'u' + Math.random().toString(36).slice(2, 8); n.name = lab.replace('Novo ', 'Meu ').replace('Nova ', 'Minha ') + ' ' + (s.ammos.length + 1); n.builtin = false; Store.set({ ammos: [...s.ammos, n], ammoId: n.id, layerSel: null }); saveAmmos(); SB.Scene.showAmmo(n, s.cut); } }, '＋ ' + lab))),
+        div({ className: 'btns' }, [['Novo míssil (veículo)', 'ATGM · '], ['Novo foguete', 'RKT-FRAG · '], ['Nova munição de canhão', 'AP · '], ['Nova munição de canhão automático (veículo)', '30×165 mm 2A42 HE-FRAG-T (veículo)'], ['Nova munição de helicóptero', '30×165 mm 2A42 HE-FRAG-T']].map(([lab, pre]) => button({ key: lab, onClick: () => { const t = s.ammos.find(x => x.name.indexOf(pre) === 0); if (!t) return; const n = SB.ammoClone(t); n.id = 'u' + Math.random().toString(36).slice(2, 8); n.name = lab.replace('Novo ', 'Meu ').replace('Nova ', 'Minha ') + ' ' + (s.ammos.length + 1); n.builtin = false; Store.set({ ammos: [...s.ammos, n], ammoId: n.id, layerSel: null }); saveAmmos(); SB.Scene.showAmmo(n, s.cut); } }, '＋ ' + lab))),
         div({ className: 'hint' }, 'Dica: desenhe o projétil/míssil/foguete abaixo e escolha o tipo; a penetração e o dano saem do desenho + calibração. Armas de calibre fixo (foguetes e mísseis) não são reescaladas ao canhão.')),
       div({ className: 'sec' }, 'Desenho do projétil (arraste os pontos; duplo clique na borda cria ponto; botão direito remove)'),
       h(ProfileEditor),
@@ -257,7 +262,7 @@
     return div({ className: 'panel' },
       div({ className: 'sec' }, 'Disparo'),
       div({ className: 'form' },
-        Row('Munição', h(Sel,{ v: s.simAmmo, on: v => set('simAmmo', v), opts: s.ammos.map(x => [x.id, (x.builtin ? '' : '★ ') + x.name]) })),
+        Row('Munição', h(Sel,{ v: s.simAmmo, on: v => set('simAmmo', v), opts: ammoOpts(s.ammos) })),
         Row('Distância (m)', h(Num,{ v: s.dist, on: v => set('dist', Math.max(0, v)), step: 100 })),
         Row('Azimute (°)', h('input', { type: 'range', min: -180, max: 180, value: s.az, onChange: e => set('az', +e.target.value) }), h(Num,{ v: s.az, on: v => set('az', v), step: 5, w: 56 })),
         div({ className: 'hint' }, '0° = de frente, 90° = lado direito, 180° = traseira'),

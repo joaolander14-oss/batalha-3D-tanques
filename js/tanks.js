@@ -122,6 +122,16 @@
       P.push(mod('Comandante', 'commander', [-0.45 * fx, cy, cz + Math.min(0.55, tr * 0.6)], null, null, null, tg));
     }
 
+    /* ---------- sistemas adicionais (peças com efeito de jogo) ---------- */
+    const modern = c.cal >= 100 && c.vk >= 1.12 && c.vmax >= 48;
+    if (c.stab != null ? c.stab : modern) P.push(mod('Estabilizador do canhão', 'stab', [0, gy - 0.18, mantZ + 0.95], [0.3, 0.25, 0.35], null, null, 'gun'));
+    if (c.lrf != null ? c.lrf : (c.cal >= 75 && c.vk >= 1.1 && c.vmax >= 45)) P.push(mod('Telêmetro laser', 'lrf', [0.28 * fx, gy + 0.3, mantZ + 0.5], [0.22, 0.16, 0.22], null, null, 'gun'));
+    if (c.auto && c.cal >= 90) P.push(mod('Carregador automático', 'autoload', c.ammo === 'bustle' ? [0, ty - 0.05, tz + tr * 0.35] : [0, 0.98, -0.1], [0.9 * fx, 0.3, 0.9], null, null, c.ammo === 'bustle' ? tg : 'hull'));
+    if (c.fireSup != null ? c.fireSup : modern) P.push(mod('Supressão de incêndio', 'fire', [0.7 * fx, 0.9, -Lh + 1.3], [0.3, 0.3, 0.3], null, null, 'hull'));
+    if (!casemate) P.push(mod('Anel da torre', 'ring', [0, Ht + 0.02, tz], [tr * 1.7, 0.1, tr * 1.7], null, null, 'hull'));
+    if (c.smoke) P.push(mod('Lançadores de fumaça', 'smokel', [0, ty + th / 2 - 0.12, tz - tr * 0.35], [Math.min(1.2, tr * 1.5), 0.18, 0.3], null, null, tg));
+    if (c.aps) P.push(mod('Proteção ativa (APS)', 'aps', [0, ty + th / 2 + 0.12, tz + tr * 0.3], [0.5, 0.2, 0.5], null, null, tg));
+    P.forEach(p => { if (c.ammo === 'bustle' && p.name.indexOf('Paiol da torre') === 0) p.blow = true; if (c.wet && p.sub === 'ammo') p.wet = true; });
     /* ---------- decoração visual (não entra na simulação) ---------- */
     const d = (shape, pos, size, rot, color, grp) => D.push({ shape, pos: pos.map(x => rd(x, 3)), size, rot: rot || [0, 0, 0], color, grp: grp || 'hull', wall: 0.03 });
     const w = c.wh || [6, 0.36, 'std'], nW = w[0], wr = w[1], wt = w[2];
@@ -170,6 +180,8 @@
       if (c.aa === 'gepard') d('sphere', [0, ty + th / 2 + 0.42, tz - tr * 0.45], [0.7, 0.5, 0.7], null, 'dark', tgp);
       if (c.sam) { const sd = c.samD || 0.2, sl = c.samLen || 1.6, nt = c.sam >= 8 ? 4 : c.sam >= 6 ? 3 : c.sam >= 3 ? 2 : 1; [-1, 1].forEach(sg => { for (let k = 0; k < nt; k++) d('cyl', [sg * (tr * 0.9 + sd * 0.8), ty + 0.2 + k * (sd * 1.15), tz - sl * 0.18], [sd, sl, sd], [-58, 0, 0], 'metal', tgp); }); }
     }
+    if (c.aps && !casemate) [-1, 1].forEach(sg => { d('box', [sg * tr * 0.85, ty + th / 2 + 0.04, tz - tr * 0.2], [0.14, 0.14, 0.14], null, 'dark', tg); d('cyl', [sg * tr * 0.92, ty + th / 2 + 0.2, tz + tr * 0.15], [0.13, 0.55, 0.13], [0, 0, sg * 35], 'dark', tg); });
+    if (c.ammo === 'bustle' && !casemate) [-1, 1].forEach(sg => d('box', [sg * tr * 0.3, ty + th / 2 + 0.03, tz + tr * 0.75], [0.4, 0.03, 0.35], null, 'metal', tg));
     /* escala uniforme (espessuras preservadas) */
     const s = c.s || 1;
     const scl = p => {
@@ -227,19 +239,19 @@
     T('m1a1', 'M1A1 Abrams', 'EUA', 57, 67, 120, 1.3, 5, V('abrams', { glacis: CMP(40, 280, 60), mantlet: cm(80, 320, 50), tf: cm(80, 320, 50), paint: 0x9b8f69 })),
     T('m1a2sep', 'M1A2 SEPv2', 'EUA', 63, 67, 120, 1.34, 5, V('abrams', { Lh: 3.9, glacis: CMP(40, 350, 70), mantlet: cm(80, 380, 60), tf: cm(80, 380, 60), side: L('rha', 70), extras: ER(3.9, 1.75, 1.4), paint: 0x8f8460, stats: { turn: 34 } })),
     T('leo2a6', 'Leopard 2A6', 'Alemanha', 62, 68, 120, 1.38, 5, V('leo2a5', { glacis: NRA(40, 330, 60), tf: nm(100, 380, 50), mantlet: nm(100, 380, 50), paint: 0x3b4833 })),
-    T('leo2a7', 'Leopard 2A7', 'Alemanha', 67, 68, 120, 1.4, 5, V('leo2a5', { Lh: 3.85, glacis: NRA(40, 380, 60), tf: nm(100, 420, 60), mantlet: nm(100, 420, 60), extras: ER(3.85, 1.7, 1.4), paint: 0x4a5a40, s: 1.1 })),
+    T('leo2a7', 'Leopard 2A7', 'Alemanha', 67, 68, 120, 1.4, 5, V('leo2a5', { aps: true, Lh: 3.85, glacis: NRA(40, 380, 60), tf: nm(100, 420, 60), mantlet: nm(100, 420, 60), extras: ER(3.85, 1.7, 1.4), paint: 0x4a5a40, s: 1.1 })),
     T('leclerc', 'Leclerc', 'França', 56, 71, 120, 1.34, 4.5, V('leo2a5', { Lh: 3.45, Wh: 1.7, Ht: 1.3, auto: true, ammo: 'bustle', tr: 1.0, th: 0.7, tf: nm(100, 330, 50), mantlet: nm(100, 330, 50), glacis: NRA(40, 300, 60), wh: [6, 0.38, 'std'], ret: 3, paint: 0xa7966a, s: 1.06, stats: { rack: 40, turn: 38 } })),
     T('ariete', 'C1 Ariete', 'Itália', 54, 65, 120, 1.3, 5, V('leo2a5', { Lh: 3.5, glacis: NRA(40, 280, 60), tf: nm(100, 300, 50), mantlet: nm(100, 300, 50), paint: 0x6f6a48, s: 1.05 })),
     T('type90', 'Type 90 Kyū-maru', 'Japão', 50, 70, 120, 1.3, 4.5, V('leo2a5', { Lh: 3.4, Wh: 1.6, Ht: 1.3, auto: true, tr: 0.98, th: 0.66, wh: [6, 0.34, 'std'], tf: nm(90, 300, 50), mantlet: nm(90, 300, 50), paint: 0x58603f, s: 1.03, stats: { rack: 40, turn: 36 } })),
     T('type10', 'Type 10', 'Japão', 44, 70, 120, 1.3, 4.5, V('leo2a5', { Lh: 3.2, Wh: 1.6, Ht: 1.28, auto: true, tr: 0.98, th: 0.64, wh: [6, 0.34, 'std'], tf: nm(80, 300, 50), mantlet: nm(80, 300, 50), paint: 0x5d6642, s: 1.0, stats: { rack: 40, turn: 38 } })),
     T('k1a1', 'K1A1', 'Coreia do Sul', 53, 65, 120, 1.28, 5, V('leo2a5', { Lh: 3.45, Wh: 1.65, glacis: NRA(40, 250, 60), tf: nm(100, 300, 40), mantlet: nm(100, 300, 40), paint: 0x56603e, s: 1.04 })),
-    T('k2', 'K2 Black Panther', 'Coreia do Sul', 55, 70, 120, 1.42, 4.5, V('leo2a5', { Lh: 3.5, Wh: 1.7, Ht: 1.35, auto: true, glacis: NRA(40, 350, 60), tf: nm(100, 400, 50), mantlet: nm(100, 400, 50), extras: ER(3.5, 1.7, 1.35), paint: 0x4f5a3a, s: 1.06, stats: { rack: 40, turn: 38 } })),
-    T('merkava4', 'Merkava Mk.4M', 'Israel', 65, 64, 120, 1.32, 5, V('abrams', { Lh: 3.6, Wh: 1.8, Ht: 1.5, engF: true, tz: 0.85, tr: 1.05, th: 0.75, glacis: CMP(50, 320, 70), side: L('rha', 90), tf: cm(80, 350, 60), mantlet: cm(80, 350, 60), skirt: [['rub', 20], ['rha', 20]], paint: 0x9b946e, s: 1.1, stats: { turn: 32 } })),
+    T('k2', 'K2 Black Panther', 'Coreia do Sul', 55, 70, 120, 1.42, 4.5, V('leo2a5', { aps: true, Lh: 3.5, Wh: 1.7, Ht: 1.35, auto: true, glacis: NRA(40, 350, 60), tf: nm(100, 400, 50), mantlet: nm(100, 400, 50), extras: ER(3.5, 1.7, 1.35), paint: 0x4f5a3a, s: 1.06, stats: { rack: 40, turn: 38 } })),
+    T('merkava4', 'Merkava Mk.4M', 'Israel', 65, 64, 120, 1.32, 5, V('abrams', { aps: true, Lh: 3.6, Wh: 1.8, Ht: 1.5, engF: true, tz: 0.85, tr: 1.05, th: 0.75, glacis: CMP(50, 320, 70), side: L('rha', 90), tf: cm(80, 350, 60), mantlet: cm(80, 350, 60), skirt: [['rub', 20], ['rha', 20]], paint: 0x9b946e, s: 1.1, stats: { turn: 32 } })),
     T('t80u', 'T-80U', 'URSS', 46, 70, 125, 1.25, 6.5, V('t72a', { Lh: 3.35, Ht: 1.2, glacis: NRA(50, 140, 30), mantlet: [['cast', 220], ['sand', 100], ['cast', 120]], extras: ER(3.35, 1.6, 1.2), paint: 0x52603e, wh: [6, 0.38, 'std'], ret: 0 })),
-    T('t80bvm', 'T-80BVM', 'Rússia', 46, 70, 125, 1.28, 6.5, V('t72a', { Lh: 3.35, glacis: NRA(50, 140, 30), tf: cm(240, 160, 100), mantlet: cm(240, 160, 100), ts: 'angular', turAng: 55, extras: ER(3.35, 1.6, 1.2), paint: 0x46563a, wh: [6, 0.38, 'std'], ret: 0 })),
+    T('t80bvm', 'T-80BVM', 'Rússia', 46, 70, 125, 1.28, 6.5, V('t72a', { aps: true, Lh: 3.35, glacis: NRA(50, 140, 30), tf: cm(240, 160, 100), mantlet: cm(240, 160, 100), ts: 'angular', turAng: 55, extras: ER(3.35, 1.6, 1.2), paint: 0x46563a, wh: [6, 0.38, 'std'], ret: 0 })),
     T('t72b3', 'T-72B3', 'Rússia', 46, 60, 125, 1.26, 6.5, V('t72a', { glacis: NRA(60, 130, 30), mantlet: [['cast', 220], ['sand', 100], ['cast', 120]], extras: ER(3.3, 1.6, 1.2), smoke: true, paint: 0x5a6340 })),
-    T('t90m', 'T-90M Proryv-3', 'Rússia', 48, 60, 125, 1.3, 6.5, V('t90a', { glacis: [['rha', 80], ['nera', 120], ['rha', 40]], tf: cm(160, 280, 100), mantlet: cm(160, 280, 100), extras: ER(3.3, 1.6, 1.22), s: 0.99, paint: 0x3c4a33 })),
-    T('t14', 'T-14 Armata', 'Rússia', 55, 70, 125, 1.42, 4.5, V('t90a', { Lh: 3.5, Wh: 1.7, Ht: 1.3, crewHull: true, ts: 'angular', th: 0.42, tr: 1.0, turAng: 50, tz: 0.1, glacis: CMP(80, 300, 60), tf: cm(120, 300, 60), mantlet: cm(120, 300, 60), extras: ER(3.5, 1.7, 1.3), wh: [7, 0.36, 'std'], ret: 3, antenna: false, smoke: true, paint: 0x4a5640, s: 1.04, stats: { turn: 36, rack: 45 } })),
+    T('t90m', 'T-90M Proryv-3', 'Rússia', 48, 60, 125, 1.3, 6.5, V('t90a', { aps: true, glacis: [['rha', 80], ['nera', 120], ['rha', 40]], tf: cm(160, 280, 100), mantlet: cm(160, 280, 100), extras: ER(3.3, 1.6, 1.22), s: 0.99, paint: 0x3c4a33 })),
+    T('t14', 'T-14 Armata', 'Rússia', 55, 70, 125, 1.42, 4.5, V('t90a', { aps: true, Lh: 3.5, Wh: 1.7, Ht: 1.3, crewHull: true, ts: 'angular', th: 0.42, tr: 1.0, turAng: 50, tz: 0.1, glacis: CMP(80, 300, 60), tf: cm(120, 300, 60), mantlet: cm(120, 300, 60), extras: ER(3.5, 1.7, 1.3), wh: [7, 0.36, 'std'], ret: 3, antenna: false, smoke: true, paint: 0x4a5640, s: 1.04, stats: { turn: 36, rack: 45 } })),
     T('ztz99a', 'ZTZ-99A', 'China', 58, 80, 125, 1.3, 5, V('t90a', { Lh: 3.5, Wh: 1.7, Ht: 1.25, ts: 'angular', tr: 1.0, th: 0.62, turAng: 58, glacis: CMP(70, 250, 40), tf: cm(160, 300, 60), mantlet: cm(160, 300, 60), extras: ER(3.5, 1.7, 1.25), wh: [6, 0.36, 'std'], ret: 3, paint: 0x6a6f4c, s: 1.03 })),
     T('type96', 'ZTZ-96A', 'China', 42, 65, 125, 1.22, 6.5, V('t72a', { glacis: NRA(60, 130, 30), extras: ER(3.3, 1.6, 1.2), paint: 0x5e6a47, ret: 3 })),
     T('altay', 'Altay', 'Turquia', 65, 65, 120, 1.38, 5, V('leo2a5', { Lh: 3.9, glacis: CMP(50, 340, 70), tf: cm(100, 380, 60), mantlet: cm(100, 380, 60), extras: ER(3.9, 1.7, 1.4), paint: 0x7e7752, s: 1.1 })),
@@ -247,7 +259,7 @@
     T('pt91', 'PT-91 Twardy', 'Polônia', 45, 60, 125, 1.2, 7, V('t72a', { glacis: NRA(60, 105, 20), extras: ER(3.3, 1.6, 1.2), paint: 0x586340 })),
     T('arjun', 'Arjun Mk.1A', 'Índia', 58, 67, 120, 1.22, 5.5, V('leo2a5', { Lh: 3.7, glacis: CMP(50, 280, 60), tf: cm(100, 300, 50), mantlet: cm(100, 300, 50), paint: 0x70724d, s: 1.08 })),
     T('amx30', 'AMX-30B2', 'França', 37, 65, 105, 1.1, 5.5, V('m48', { Lh: 3.1, Ht: 1.3, glAng: 45, glacis: L('rha', 80), lower: L('rha', 60), side: L('rha', 40), turWall: 0.05, mantlet: L('cast', 80), roof: L('rha', 20), floor: L('rha', 15), ts: 'egg', tr: 0.95, th: 0.55, paint: 0x6f7048, s: 0.97, wh: [5, 0.34, 'std'], ret: 5, bustle: false, smoke: true })),
-    T('ch3', 'Challenger 3', 'Reino Unido', 66, 59, 120, 1.46, 5, V('challenger2', { glacis: [['rha', 50], ['cer', 380], ['rha', 80]], tf: cm(100, 420, 70), mantlet: cm(100, 420, 70), extras: ER(3.7, 1.75, 1.45), sleeve: true, paint: 0x6c6a48, s: 1.13, stats: { turn: 32 } })),
+    T('ch3', 'Challenger 3', 'Reino Unido', 66, 59, 120, 1.46, 5, V('challenger2', { aps: true, glacis: [['rha', 50], ['cer', 380], ['rha', 80]], tf: cm(100, 420, 70), mantlet: cm(100, 420, 70), extras: ER(3.7, 1.75, 1.45), sleeve: true, paint: 0x6c6a48, s: 1.13, stats: { turn: 32 } })),
     T('m60a3', 'M60A3 TTS', 'EUA', 52, 48, 105, 1.14, 6, V('m60', { smoke: true, paint: 0x6c7448 }))
   );
   SB.ROSTER = ROSTER.map(r => ({ id: r[0], name: r[1], nation: r[2], mass: r[3], vmax: r[4], cal: r[5], vk: r[6], reload: r[7], cfg: r[8] }));

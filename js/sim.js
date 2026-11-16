@@ -455,19 +455,20 @@
     while (changed && guard++ < 6) {
       changed = false;
       for (const w of ctx.W) {
-        if (w.flags.det) { ctx.ammoDet = true; done.add(w); }
+        if (w.flags.det) { if (!w.p.blow) ctx.ammoDet = true; done.add(w); }
         if (w.flags.fire) ctx.fire = true;
         if (done.has(w)) continue;
         const sub = w.p.sub, frac = Math.min(1, w.acc / w.hp);
         if (sub === 'ammo' && frac > 0.25) {
-          const pd = clamp((frac - 0.25) / 0.6, 0, 1) * 0.9 + (w.flags.jet ? 0.3 : 0);
+          const pd = (clamp((frac - 0.25) / 0.6, 0, 1) * 0.9 + (w.flags.jet ? 0.3 : 0)) * (w.p.wet ? 0.3 : 1);
           done.add(w);
           if (ctx.rnd() < pd) {
-            w.flags.det = true; w.acc = w.hp * 2; ctx.ammoDet = true; changed = true;
-            const kg = w.p.expl || 5;
+            w.flags.det = true; w.acc = w.hp * 2; changed = true;
+            const blow = !!w.p.blow; if (blow) ctx.blown = true; else ctx.ammoDet = true;
+            const kg = blow ? 0.1 : (w.p.expl || 5);
             ctx.blasts.push({ pos: w.pos.clone(), tnt: kg });
             blast(ctx, w.pos.clone(), kg);
-            log('💥 DETONAÇÃO DE MUNIÇÃO em "' + w.p.name + '" (dano ' + (frac * 100).toFixed(0) + '%, chance ' + (pd * 100).toFixed(0) + '%).', 'bad');
+            log(blow ? '💨 Paiol "' + w.p.name + '" detonou, mas os painéis de alívio expeliram a explosão para fora (tripulação poupada).' : '💥 DETONAÇÃO DE MUNIÇÃO em "' + w.p.name + '" (dano ' + (frac * 100).toFixed(0) + '%, chance ' + (pd * 100).toFixed(0) + '%).', 'bad');
           } else log('Paiol "' + w.p.name + '" danificado (' + (frac * 100).toFixed(0) + '%), mas NÃO detonou (chance ' + (pd * 100).toFixed(0) + '%).', 'warn');
         } else if (sub === 'fuel' && frac > 0.2) {
           done.add(w);

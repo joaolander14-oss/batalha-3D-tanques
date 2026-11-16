@@ -16,7 +16,7 @@
   /* fator 0..1 pela distância até o "ouvinte" (a câmera) */
   const att = p => { const L = SB.FX.listener; if (!L || !p) return 1; const d = L.distanceTo(p); return d > 1400 ? 0 : Math.pow(Math.max(0, 1 - d / 1100), 1.6); };
   function add(pos, vel, size, grow, life, color, op, additive) {
-    if (live.length > 520) return;
+    if (live.length > 700) return;
     const s = get(); s.position.copy(pos); s.material.color.set(color); s.material.opacity = op; s.material.blending = additive ? THREE.AdditiveBlending : THREE.NormalBlending; s.scale.setScalar(size);
     live.push({ s, vel, grow, life, max: life, op, size });
   }
@@ -62,6 +62,16 @@
     },
     sparks(pos, n) { const a = att(pos); if (a < 0.06) return; for (let i = 0; i < Math.max(2, Math.round(n * a)); i++) add(pos.clone(), new V3(r(16), Math.random() * 12, r(16)), 0.4, -0.2, 0.4 + Math.random() * 0.3, 0xffe9a0, 1, true); noise(0.2, 0.35 * a, 5000, 800, 'bandpass'); },
     dust(pos, n) { const a = att(pos); if (a < 0.06) return; for (let i = 0; i < Math.max(2, Math.round(n * a)); i++) add(pos.clone(), new V3(r(5), 1 + Math.random() * 4, r(5)), 1.6, 5, 1.2, 0x9a8a6a, 0.55, false); noise(0.3, 0.2 * a, 600, 100); },
+    puff(pos, vel, size, grow, life, color, op, additive) { if (att(pos) < 0.05) return; add(pos, vel, size, grow, life, color, op, additive); },
+    sprite(color, size, additive) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending })); s.scale.setScalar(size); return s; },
+    trailSeg(a, b, st) {
+      if (!st) return; const d = a.distanceTo(b); if (d < 0.01 || att(b) < 0.1) return;
+      const n = Math.min(8, Math.max(1, Math.round(d / (st.gap || 4))));
+      for (let i = 1; i <= n; i++) add(a.clone().lerp(b, i / n), new V3(r(0.8), r(0.6) + (st.rise || 0), r(0.8)), st.size, st.grow, st.life * (0.8 + Math.random() * 0.4), st.c, st.op, st.add);
+    },
+    ring(pos, size, life, color, op) { if (att(pos) < 0.05) return; add(pos.clone(), new V3(0, 0, 0), 0.5, size * 2, life, color, op, false); },
+    flash(pos, color, size) { if (att(pos) < 0.05) return; add(pos.clone(), new V3(0, 0, 0), size * 0.6, size * 2.4, 0.18, color, 1, true); add(pos.clone(), new V3(0, 0, 0), size * 0.3, size * 1.2, 0.3, 0xffffff, 1, true); },
+    muzzleSmall(pos, dir) { const a = att(pos); if (a < 0.04) return; for (let i = 0; i < 2; i++) add(pos.clone().addScaledVector(dir, i * 0.5), dir.clone().multiplyScalar(6 + Math.random() * 8), 0.9, 1.5, 0.12, 0xffd070, 0.9, true); noise(0.18, 0.28 * a, 1800, 200); },
     clank(pos) { noise(0.3, 0.5 * att(pos), 4200, 600, 'bandpass'); },
   };
 })(window.SB);
