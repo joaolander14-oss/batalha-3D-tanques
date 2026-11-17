@@ -740,6 +740,7 @@
       const cd = camDir(), co = camOrigin(cd), hit = rangeAlong(co, cd);
       B.aimR = hit.r; B.aimPt = hit.p; const tp = new V3(me.x, me.y + 2.3, me.z); const aimPt = hit.p; const dv = aimPt.clone().sub(tp), hd = Math.hypot(dv.x, dv.z), A = me.ammo[me.sel].A;
       c.aimYaw = Math.atan2(-dv.x, -dv.z); c.aimPitch = Math.atan2(dv.y, hd) + droop(A, me.stat.lrfDead ? Math.max(30, Math.round(dv.length() / 150) * 150 * (1 + Math.sin(B.t * 0.7) * 0.12)) : Math.max(30, dv.length()));
+      if (me.st.plane) { c.steer = clamp(clamp(wrap(B.camYaw - me.yaw) * 2.6, -1, 1) + ((k.KeyA ? 1 : 0) - (k.KeyD ? 1 : 0)) * 0.3, -1, 1); c.lift = clamp((B.camPitch - me.pitch) * 3.5, -1, 1); }   // avião: o nariz segue a mira do mouse
     } else { me.ctl.thr = 0; me.ctl.steer = 0; me.ctl.fire = false; }
     const stuckInput = B.keys;
     for (const e of B.ents.values()) {

@@ -15,4 +15,4 @@ Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo
 
 ## Como jogar
 Abra `index.html` por um servidor estático (`python -m http.server`) ou pelo GitHub Pages.
-W/S acelera, A/D vira (helicóptero: Espaço sobe, Shift desce), mouse mira, clique atira, botão direito mira telescópica, 1-8 munição (aviões: W/S velocidade, Espaço sobe, Shift desce; bombas caem do pilone), X raio-X, F extintor, Tab placar.
+W/S acelera, A/D vira (helicóptero: Espaço sobe, Shift desce), mouse mira, clique atira, botão direito mira telescópica, 1-8 munição (aviões: o avião segue a mira do mouse, W/S velocidade; bombas caem do pilone), X raio-X, F extintor, Tab placar.
