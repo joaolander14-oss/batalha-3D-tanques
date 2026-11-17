@@ -149,8 +149,8 @@
     const map = SB.makeMap(cfg.map, cfg.seed);
     const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.setClearColor(map.def.sky);
     el.insertBefore(renderer.domElement, el.firstChild);
-    const scene = new THREE.Scene(); scene.fog = new THREE.Fog(map.def.fog, 300, 1500);
-    const camera = new THREE.PerspectiveCamera(60, 1, 0.3, 3500);
+    const scene = new THREE.Scene(); scene.fog = new THREE.Fog(map.def.fog, 400, 2800);
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.3, 6000);
     scene.add(new THREE.HemisphereLight(0xdde8ff, 0x555544, 0.9)); const sun = new THREE.DirectionalLight(0xfff0d8, 0.9); sun.position.set(300, 500, 200); scene.add(sun);
     scene.add(SB.buildMapMesh(map));
     SB.FX.init(scene); SB.FX.listener = camera.position;
@@ -166,7 +166,7 @@
     const slotA = { A: 0, B: 0 };
     cfg.specs.forEach(sp => {
       const e = makeEnt(sp); B.ents.set(e.eid, e);
-      const sl = map.spawns[e.team][(slotA[e.team]++) % map.spawns[e.team].length]; placeAt(e, sl.x, sl.z, sl.yaw);
+      const arr = e.st.plane ? map.airSpawns[e.team] : map.spawns[e.team], sl = arr[(slotA[e.team + (e.st.plane ? 'p' : '')] = (slotA[e.team + (e.st.plane ? 'p' : '')] || 0) + 1) % arr.length]; placeAt(e, sl.x, sl.z, sl.yaw);
       if (sp.eid === cfg.myEid) B.me = e;
     });
     if (!B.me) { B.me = [...B.ents.values()][0]; }
@@ -184,7 +184,7 @@
     document.getElementById('root').style.display = ''; SB._paused = false; SB.Net.onMsg = SB.Lobby && SB.Lobby.onMsg;
     if (!silent && SB.Lobby && SB.Lobby.onExit) SB.Lobby.onExit();
   }
-  function placeAt(e, x, z, yaw) { e.x = x; e.z = z; e.yaw = yaw; e.v = 0; e.tYaw = 0; e.gP = 0; e.vy = 0; e.crash = null; e.y = B.map.H(x, z) + (e.isHeli ? 42 : 0); if (e.isHeli) { e.pitch = 0; e.roll = 0; } poseEnt(e, 1); }
+  function placeAt(e, x, z, yaw) { e.x = x; e.z = z; e.yaw = yaw; e.v = 0; e.tYaw = 0; e.gP = 0; e.vy = 0; e.crash = null; e.y = B.map.H(x, z) + (e.isHeli ? (e.st.plane ? 3 : 42) : 0); if (e.isHeli) { e.pitch = 0; e.roll = 0; } if (e.st.plane) e.v = e.st.vmax / 3.6 * 0.5; poseEnt(e, 1); }
 
   /* ---------------- entrada ---------------- */
   const HUD_HTML = `
@@ -574,9 +574,12 @@
   function enemies(e) { return [...B.ents.values()].filter(o => o.alive && o.team !== e.team); }
   function droop(A, r) { const v = A.v0 * Math.exp(-A.k * r * 0.5); return Math.asin(clamp(G * r / (2 * v * v), 0, 0.6)); }
   /* ---------------- base, zonas, manutenção e reparo ---------------- */
-  const inBase = (team, x, z) => (team === 'A' ? z < -B.map.half + 190 : z > B.map.half - 190);
-  const baseWp = e => ({ x: clamp(e.x, -B.map.half * 0.5, B.map.half * 0.5), z: e.team === 'A' ? -B.map.half + 100 : B.map.half - 100 });
+  const cH = () => B.map.core / 2;
+  const inBase = (team, x, z) => (team === 'A' ? z < -cH() + 190 : z > cH() - 190);
+  const inAirport = e => B.map.airports.some(a => a.team === e.team && Math.abs(e.x - a.x) < 130 && Math.abs(e.z - a.z) < a.len / 2 + 250);
+  const baseWp = e => { if (e.st.plane) { const a = B.map.airports.find(q => q.team === e.team); return { x: a.x, z: a.z }; } return { x: clamp(e.x, -cH() * 0.5, cH() * 0.5), z: e.team === 'A' ? -cH() + 100 : cH() - 100 }; };
   function serviceFor(e) {
+    if (e.st.plane) return inAirport(e) ? 4 : 0;
     if (inBase(e.team, e.x, e.z)) return 6;
     for (const z of B.zones) if (z.owner === e.team && Math.hypot(e.x - z.x, e.z - z.z) < z.r) return 14;
     return 0;
@@ -635,7 +638,7 @@
       B.zones.push({ x: z.x, z: z.z, r: z.r, n: z.n, cap: 0, owner: null, beam, ring, flag, last: 9 });
     });
     // marcadores das bases (mastros com bandeira da equipe)
-    ['A', 'B'].forEach(team => { const zb = team === 'A' ? -B.map.half + 190 : B.map.half - 190; for (let x = -B.map.half * 0.6; x <= B.map.half * 0.6; x += 150) { const gh = B.map.H(x, zb); const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 14, 5), new THREE.MeshBasicMaterial({ color: team === 'A' ? 0x3aa0ff : 0xff5a4a })); m.position.set(x, gh + 7, zb); B.scene.add(m); } });
+    ['A', 'B'].forEach(team => { const zb = team === 'A' ? -cH() + 190 : cH() - 190; for (let x = -cH() * 0.6; x <= cH() * 0.6; x += 150) { const gh = B.map.H(x, zb); const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 14, 5), new THREE.MeshBasicMaterial({ color: team === 'A' ? 0x3aa0ff : 0xff5a4a })); m.position.set(x, gh + 7, zb); B.scene.add(m); } });
   }
   function zoneColors() {
     B.zones.forEach(z => {
@@ -675,7 +678,8 @@
       return { x: z.x + Math.cos(a) * rr, z: z.z + Math.sin(a) * rr };
     }
     const dirz = e.team === 'A' ? 1 : -1;
-    return { x: clamp(e.x + (Math.random() - 0.5) * 500, -B.map.half + 60, B.map.half - 60), z: clamp(e.z + dirz * (150 + Math.random() * 300), -B.map.half + 60, B.map.half - 60) };
+    const lim = (e.st.plane ? B.map.half : cH()) - 60;
+    return { x: clamp(e.x + (Math.random() - 0.5) * 500, -lim, lim), z: clamp(e.z + dirz * (150 + Math.random() * 300) * (e.st.plane ? 3 : 1), -lim, lim) };
   }
   function aiHeli(e, dt) {
     const ai = e.ai || (e.ai = { t: 0, tg: null, alt: 38 + Math.random() * 28, off: Math.random() * 6.28, wp: null });
@@ -695,7 +699,7 @@
     const want = Math.atan2(-(gx - e.x), -(gz - e.z)), err = wrap(want - e.yaw);
     c.steer = clamp(err * 2, -1, 1); c.thr = (Math.abs(err) > 1.1 && !e.st.plane) ? Math.min(thr, 0.3) : thr;
     if (ai.svc && inBase(e.team, e.x, e.z) && !e.st.plane) { c.thr = 0; c.steer = 0; }
-    const ax = e.x - Math.sin(e.yaw) * 70, az = e.z - Math.cos(e.yaw) * 70, gh = Math.max(B.map.H(e.x, e.z), B.map.H(ax, az)), tgtAlt = (ai.svc && inBase(e.team, e.x, e.z)) ? gh + 2.5 : gh + ai.alt + (B.map.hit(ax, e.y, az) ? 60 : 0);
+    const ax = e.x - Math.sin(e.yaw) * 70, az = e.z - Math.cos(e.yaw) * 70, gh = Math.max(B.map.H(e.x, e.z), B.map.H(ax, az)), tgtAlt = (ai.svc && (e.st.plane ? inAirport(e) : inBase(e.team, e.x, e.z))) ? gh + 2.5 : gh + ai.alt + (B.map.hit(ax, e.y, az) ? 60 : 0);
     c.lift = clamp((tgtAlt - e.y) / 12, -1, 1); c.fire = false;
     if (tg) {
       const tp = new V3(tg.x, tg.y + 1.5, tg.z), r = pos.distanceTo(tp);
@@ -779,7 +783,7 @@
       if (e.owner === B.myPeer) {
         if (e.bot && e.alive) aiThink(e, dt);
         driveEnt(e, dt); serviceStep(e, dt);
-        if (!e.alive && e.respawn > 0) { e.respawn -= dt; if (e.respawn <= 0) { const sl = B.map.spawns[e.team][Math.floor(Math.random() * 14)]; respawnEnt(e, sl.x + (Math.random() - 0.5) * 20, sl.z, sl.yaw); SB.Net.send({ t: 'r', e: e.eid, x: e.x, z: e.z, yaw: e.yaw }); } }
+        if (!e.alive && e.respawn > 0) { e.respawn -= dt; if (e.respawn <= 0) { const sl = (e.st.plane ? B.map.airSpawns : B.map.spawns)[e.team][Math.floor(Math.random() * (e.st.plane ? 12 : 14))]; respawnEnt(e, sl.x + (Math.random() - 0.5) * 20, sl.z, sl.yaw); SB.Net.send({ t: 'r', e: e.eid, x: e.x, z: e.z, yaw: e.yaw }); } }
       } else remoteStep(e, dt);
       effectsStep(e, dt);
     }
@@ -1010,7 +1014,7 @@
   function drawMini(me) {
     const c = $('mini'), g = c.getContext('2d'), W = c.width, S = B.map.size; g.fillStyle = 'rgba(15,22,30,.75)'; g.fillRect(0, 0, W, W);
     const m = (x, z) => [(x + S / 2) / S * W, (z + S / 2) / S * W];
-    { const hb = 190 / S * W; g.fillStyle = 'rgba(58,160,255,.16)'; g.fillRect(0, 0, W, hb); g.fillStyle = 'rgba(255,90,74,.16)'; g.fillRect(0, W - hb, W, hb);
+    { const mp = B.map, c2 = mp.core / 2, y0 = m(0, -c2)[1], y1 = m(0, -c2 + 190)[1], y2 = m(0, c2 - 190)[1], y3 = m(0, c2)[1]; g.fillStyle = 'rgba(58,160,255,.16)'; g.fillRect(0, y0, W, y1 - y0); g.fillStyle = 'rgba(255,90,74,.16)'; g.fillRect(0, y2, W, y3 - y2); g.strokeStyle = '#fff3'; g.strokeRect(m(-c2, -c2)[0], y0, mp.core / S * W, mp.core / S * W); mp.airports.forEach(a => { const [ax, ay] = m(a.x, a.z); g.fillStyle = a.team === 'A' ? 'rgba(58,160,255,.7)' : 'rgba(255,90,74,.7)'; g.fillRect(ax - 3, ay - a.len / 2 / S * W, 6, a.len / S * W); });
       B.zones.forEach(z => { const [a, b] = m(z.x, z.z); g.beginPath(); g.arc(a, b, z.r / S * W, 0, 7); g.fillStyle = z.owner === 'A' ? 'rgba(58,160,255,.35)' : z.owner === 'B' ? 'rgba(255,90,74,.35)' : 'rgba(180,180,190,.25)'; g.fill(); g.strokeStyle = '#fff8'; g.stroke(); }); }
     g.fillStyle = '#4a4f55'; B.map.obst.forEach(o => { if (o.tree) return; const [a, b] = m(o.x, o.z); g.fillRect(a - 1, b - 1, 2, 2); });
     for (const e of B.ents.values()) {

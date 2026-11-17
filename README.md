@@ -2,7 +2,7 @@
 
 Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo War Thunder.
 
-- 200 veículos terrestres (100 tanques, 40 IFV/APC/leves, 19 autopropulsados e caças-tanques, 41 antiaéreos de canhão e de míssil) , 125 helicópteros e 30 aviões (caças, bombardeiros e furtivos), com garagem para criar os seus
+- 200 veículos terrestres (100 tanques, 40 IFV/APC/leves, 19 autopropulsados e caças-tanques, 41 antiaéreos de canhão e de míssil) , 125 helicópteros e 125 aviões (caças, bombardeiros e furtivos), com garagem para criar os seus
 - As 61 munições do PDF "Munições de Tanque" (AP … APFSDS, HE, HEAT, ATGM guiados, foguetes, antipessoal, especiais, treino) + os 200 armamentos aéreos do PDF "armamentos_war_thunder" (60 bombas, 33 foguetes/casulos, 28 mísseis ar-ar, 40 ar-solo/anti-navio, 12 torpedos, 27 canhões/metralhadoras) para helicópteros e aviões
 - Mísseis guiados (segue a mira, trava no alvo, ataque por cima, sobrevoo/EFP, infravermelho) e foguetes que voam retos
 - Editor 3D de veículo (tanque ou helicóptero), de munição (desenho do projétil/míssil/foguete) e de materiais
@@ -22,3 +22,6 @@ Z muda o modo do radar (RWS, TWS, ACM, SOLO), T marca o próximo alvo, Y trava/d
 
 ## Antiaéreas, flares e propelente
 Veículos antiaéreos (SAM e canhão) têm radar de busca 360° (Z liga/desliga, T marca, Y trava); SAMs de radar (Buk, Tor, Roland, Hawk…) exigem alvo no radar, SAMs IR (Stinger, Igla…) não. Aeronaves têm flares (B): mísseis IR podem ser enganados por eles; todo míssil guiado pode perder o alvo (fora do campo do buscador, manobra a 90° contra radar, solo, distância). Foguetes e mísseis têm tempo de propelente: ao acabar, somem a chama e a fumaça e eles só planam/caem.
+
+## Mapa grande e aeroportos
+Os 3 mapas agora têm 3600 m: a área principal (1400 m) fica no centro, onde é a batalha de tanques, e cada equipe tem um aeroporto (pista, hangares e torre) nas pontas, a ~1500 m da área principal. Os aviões decolam da pista do aeroporto e são reabastecidos/reparados voando baixo sobre ele; tanques e helicópteros usam a base da área principal. Helicópteros e aviões têm flares (B).
