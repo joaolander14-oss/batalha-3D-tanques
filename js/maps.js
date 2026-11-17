@@ -7,6 +7,13 @@
     plain: { name: 'Planície com colinas', size: 1400, amp: [20, 8, 2.5], sky: 0x9ec3e6, fog: 0xb9d2ea, ground: [0x5f7a36, 0x8d8a4e, 0x6e5f3c] },
     city: { name: 'Cidade em ruínas', size: 1000, amp: [3, 1.5, 0.6], sky: 0xb0b8c4, fog: 0xa9b0ba, ground: [0x6c6c68, 0x84807a, 0x5a5650] },
     desert: { name: 'Deserto de dunas', size: 1500, amp: [26, 12, 3], sky: 0xe3c9a0, fog: 0xe8d3ad, ground: [0xc9a665, 0xb8914f, 0xd9bb7a] },
+    snow: { name: 'Tundra nevada', size: 1500, amp: [16, 7, 2], sky: 0xcfd9e6, fog: 0xdfe6ee, ground: [0xe8eef3, 0xcfd8e0, 0xaab6c2], kind: 'snow' },
+    forest: { name: 'Floresta densa', size: 1300, amp: [18, 9, 3], sky: 0xa9c9d8, fog: 0xa4bcc0, ground: [0x3f5a2a, 0x56703a, 0x4a4a2e], kind: 'forest' },
+    mountain: { name: 'Vale das montanhas', size: 1600, amp: [30, 13, 3.5], sky: 0xa8c0dc, fog: 0xbccbdc, ground: [0x6f7b52, 0x8a8a78, 0x9d9a90], kind: 'mountain' },
+    village: { name: 'Vila rural', size: 1200, amp: [10, 5, 1.5], sky: 0xa8cbe8, fog: 0xc0d6e8, ground: [0x7a9448, 0xa39a5c, 0x8a7a50], kind: 'village' },
+    industrial: { name: 'Zona industrial', size: 1100, amp: [2, 1, 0.5], sky: 0x9aa4ae, fog: 0x9ea6ae, ground: [0x6d6e70, 0x5c5e60, 0x7a7870], kind: 'industrial' },
+    canyon: { name: 'Desfiladeiro', size: 1500, amp: [12, 6, 2], sky: 0xe0b890, fog: 0xe0c0a0, ground: [0xb5683f, 0xc98a55, 0x93502f], kind: 'canyon' },
+    swamp: { name: 'Pântano', size: 1300, amp: [5, 3, 1.4], sky: 0x9fb0a0, fog: 0x9aa89a, ground: [0x4a5a35, 0x3d4a2e, 0x5a5a3a], kind: 'swamp' },
   };
   SB.MAP_LIST = Object.keys(DEFS).map(k => ({ id: k, name: DEFS[k].name }));
 
@@ -29,6 +36,9 @@
     };
     const H = (x, z) => {
       let h = d.amp[0] * Math.sin(x / 190 + ph[0]) * Math.cos(z / 230 + ph[1]) + d.amp[1] * Math.sin(x / 71 + z / 93 + ph[2]) + d.amp[2] * Math.sin(x / 23 + ph[3]) * Math.cos(z / 29 + ph[4]);
+      if (d.kind === 'canyon') { const rg = Math.abs(Math.sin(x / 260 + ph[5] + Math.sin(z / 400 + ph[6]) * 1.6)); h += 30 * sstep(0.55, 0.9, rg) - 4; }
+      if (d.kind === 'mountain') h += 22 * (1 - Math.abs(Math.sin(x / 210 + ph[5]) * Math.cos(z / 260 + ph[6]))) - 8;
+      if (d.kind === 'swamp') h = h * 0.5 - 1.5 + 1.2 * Math.sin(x / 17 + ph[5]) * Math.sin(z / 19 + ph[6]);
       if (id === 'desert') h += 10 * Math.abs(Math.sin(x / 120 + z / 340 + ph[5])) - 5;
       return h * flat(x, z) * airFlat(x, z);
     };
@@ -38,12 +48,28 @@
       if (Math.abs(z) > ch - 190) return false;
       return true;
     };
-    if (id === 'city') {
+    const place = (n, mk) => { for (let i = 0; i < n; i++) { const x = (rnd() - 0.5) * (S - 80), z = (rnd() - 0.5) * (S - 80); if (free(x, z)) { const o = mk(x, z); if (o) obst.push(o); } } };
+    const tree = (x, z, cc, h0) => ({ t: 'cyl', x, z, r: 1.1, h: (h0 || 11) + rnd() * 5, c: 0x3a2f22, tree: true, cc });
+    const rock = (x, z, big, c) => ({ t: 'cyl', x, z, r: big ? 5 + rnd() * 8 : 2 + rnd() * 4, h: big ? 8 + rnd() * 12 : 2.5 + rnd() * 4, c });
+    if (d.kind === 'snow') { place(170, (x, z) => tree(x, z, 0x2f5a44, 12)); place(55, (x, z) => rock(x, z, rnd() < 0.3, 0x8a8f96)); }
+    else if (d.kind === 'forest') { place(700, (x, z) => tree(x, z, rnd() < 0.5 ? 0x2a5a2a : 0x35682e, 12)); place(30, (x, z) => rock(x, z, false, 0x6f6c62)); }
+    else if (d.kind === 'mountain') { place(80, (x, z) => rock(x, z, rnd() < 0.5, 0x7a786e)); place(60, (x, z) => tree(x, z, 0x2f5a30, 13)); }
+    else if (d.kind === 'canyon') { place(70, (x, z) => rock(x, z, rnd() < 0.4, 0x9a5a38)); }
+    else if (d.kind === 'swamp') { place(260, (x, z) => tree(x, z, 0x3a5a30, 9)); place(25, (x, z) => rock(x, z, false, 0x5a5a48)); }
+    else if (d.kind === 'village') {
+      for (let v = 0; v < 7; v++) { const cx = (rnd() - 0.5) * (S - 320), cz = (rnd() - 0.5) * (S - 480); for (let k = 0; k < 5; k++) { const x = cx + (rnd() - 0.5) * 120, z = cz + (rnd() - 0.5) * 120; if (free(x, z)) obst.push({ t: 'box', x, z, hx: 5 + rnd() * 4, hz: 5 + rnd() * 4, h: 5 + rnd() * 4, c: [0xb89c78, 0xa8a090, 0xc4b08a][Math.floor(rnd() * 3)] }); } }
+      place(110, (x, z) => tree(x, z, 0x3f6a2a, 10)); place(20, (x, z) => rock(x, z, false, 0x77746c));
+    } else if (d.kind === 'industrial') {
+      place(110, (x, z) => ({ t: 'box', x, z, hx: 6, hz: 2.4, h: 2.6 + Math.floor(rnd() * 2) * 2.6, c: [0x9a3a2a, 0x2f5a8a, 0x6a7a3a, 0xa8742a][Math.floor(rnd() * 4)] }));
+      place(14, (x, z) => ({ t: 'cyl', x, z, r: 7 + rnd() * 3, h: 16 + rnd() * 8, c: 0xa8aaac })); place(9, (x, z) => ({ t: 'box', x, z, hx: 20 + rnd() * 10, hz: 14 + rnd() * 8, h: 10 + rnd() * 5, c: 0x7c8186 }));
+    }
+    if (d.kind) { /* cenário temático já montado */ }
+    else if (id === 'city') {
       for (let gx = -ch + 80; gx < ch - 60; gx += 64) for (let gz = -ch + 220; gz < ch - 200; gz += 64) {
         if (rnd() < 0.62) { const w = 16 + rnd() * 24, dd = 16 + rnd() * 24, h = 8 + rnd() * 24; obst.push({ t: 'box', x: gx + (rnd() - 0.5) * 8, z: gz + (rnd() - 0.5) * 8, hx: w / 2, hz: dd / 2, h, c: [0x8a847a, 0x6f6a63, 0x9a8f80, 0x77706a][Math.floor(rnd() * 4)] }); }
       }
     } else {
-      const nR = id === 'desert' ? 60 : 90;
+      const nR = id === 'desert' ? 60 : 90;   // (plain/desert)
       for (let i = 0; i < nR; i++) { const x = (rnd() - 0.5) * (S - 80), z = (rnd() - 0.5) * (S - 80); if (!free(x, z)) continue; obst.push({ t: 'cyl', x, z, r: 3 + rnd() * 6, h: 3 + rnd() * 6, c: id === 'desert' ? 0x9c7b4b : 0x77746c }); }
       if (id === 'plain') for (let g = 0; g < 14; g++) { const cx = (rnd() - 0.5) * (S - 200), cz = (rnd() - 0.5) * (S - 400); for (let k = 0; k < 14; k++) { const x = cx + (rnd() - 0.5) * 70, z = cz + (rnd() - 0.5) * 70; if (free(x, z)) obst.push({ t: 'cyl', x, z, r: 1.1, h: 11 + rnd() * 5, c: 0x2f4a22, tree: true }); } }
     }
@@ -109,7 +135,7 @@
       let mesh;
       const base = map.H(o.x, o.z);
       if (o.t === 'box') { mesh = new THREE.Mesh(new THREE.BoxGeometry(o.hx * 2, o.h + 6, o.hz * 2), m); mesh.position.set(o.x, base + (o.h - 6) / 2 + 3 - 3, o.z); mesh.position.y = base + o.h / 2 - 3; }
-      else if (o.tree) { mesh = new THREE.Mesh(new THREE.CylinderGeometry(o.r * 0.7, o.r, o.h, 6), m); mesh.position.set(o.x, base + o.h / 2, o.z); const cr = new THREE.Mesh(new THREE.ConeGeometry(o.r * 4, o.h * 0.7, 7), new THREE.MeshLambertMaterial({ color: 0x2a5a2a })); cr.position.y = o.h * 0.45; mesh.add(cr); }
+      else if (o.tree) { mesh = new THREE.Mesh(new THREE.CylinderGeometry(o.r * 0.7, o.r, o.h, 6), m); mesh.position.set(o.x, base + o.h / 2, o.z); const cr = new THREE.Mesh(new THREE.ConeGeometry(o.r * 4, o.h * 0.7, 7), new THREE.MeshLambertMaterial({ color: o.cc || 0x2a5a2a })); cr.position.y = o.h * 0.45; mesh.add(cr); }
       else { mesh = new THREE.Mesh(new THREE.CylinderGeometry(o.r * 0.7, o.r, o.h, 8), m); mesh.position.set(o.x, base + o.h / 2 - 0.5, o.z); }
       g.add(mesh);
     });

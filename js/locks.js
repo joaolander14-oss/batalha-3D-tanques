@@ -5,7 +5,7 @@
   const V3 = THREE.Vector3, D2R = Math.PI / 180;
   const MODES = {
     wire: { n: 'Fio (SACLOS)', s: 'FIO', d: 'segue a sua mira o voo todo; o fio rompe a 4000 m ou se você morrer' },
-    laser: { n: 'Laser (designador)', s: 'LASER', d: 'o míssil segue o ponto do laser: precisa de visada limpa (terreno/fumaça bloqueiam) e telêmetro/designador inteiro; alcance 5500 m' },
+    laser: { n: 'Laser (designador)', s: 'LASER', d: 'mire no alvo para iluminar e disparar; o míssil segue o laser (visada limpa, designador inteiro) e, a 350 m do alvo, vai sozinho; alcance 5500 m' },
     tv: { n: 'TV (foto do alvo)', s: 'TV', d: 'mire no alvo até tirar a "foto"; o míssil compara com a própria imagem, dispara-e-esquece, perde o alvo se a visão for bloqueada' },
     ir: { n: 'IR (calor)', s: 'IR', d: 'trava na assinatura de calor (motor ligado/em movimento/fogo); alvo parado e frio some; fumaça bloqueia; flares enganam' },
     gps: { n: 'GPS (coordenada)', s: 'GPS', d: 'vai ao ponto do mapa mirado no disparo (mergulho por cima); não segue alvo que se mexe' },
@@ -45,8 +45,9 @@
     const org = eye(me);
     if (mode === 'wire') { st.ok = true; st.msg = 'FIO pronto · alcance do fio 4000 m'; }
     else if (mode === 'laser') {
-      const ap = B.aimPt, vis = ap && los(B, org, ap);
-      st.ok = !me.stat.lrfDead; st.msg = me.stat.lrfDead ? 'LASER: designador danificado' : vis ? 'LASER: ponto iluminado (' + Math.round(B.aimR) + ' m)' : 'LASER: visada bloqueada';
+      const ap = B.aimPt, e2 = B.aimEnt, onT = !!(e2 && e2.alive && e2.team !== me.team), vis = !!ap && los(B, org, ap);
+      st.ok = !me.stat.lrfDead && onT && vis;
+      st.msg = me.stat.lrfDead ? 'LASER: designador danificado' : !onT ? 'LASER: aponte a mira no alvo' : !vis ? 'LASER: visada bloqueada' : 'LASER: alvo iluminado — ' + e2.name + ' (' + Math.round(B.aimR) + ' m)';
     } else if (mode === 'gps') {
       st.ok = !!B.aimPt && B.aimR < 3150; st.msg = st.ok ? 'GPS: coordenada X ' + Math.round(B.aimPt.x) + ' Z ' + Math.round(B.aimPt.z) + ' (' + Math.round(B.aimR) + ' m)' : 'GPS: aponte para um ponto do terreno';
     } else {
@@ -83,6 +84,10 @@
   function aim(B, s, own, dir, dt, hz) {
     const m = s.lk;
     if (m === 'gps') return s.gps ? s.gps.clone() : null;
+    if (m === 'laser' && s.tid) {     // fase terminal: perto do alvo iluminado, o míssil segue sozinho
+      const t = B.ents.get(s.tid);
+      if (t && t.alive) { const tp = tpos(t); if (s.term || tp.distanceTo(s.pos) < 350) { s.term = true; if (los(B, s.pos, tp)) s.unseen = 0; else { s.unseen = (s.unseen || 0) + dt; if (s.unseen > 1.5) { s.lost = true; s.why = 'alvo perdido no terminal'; return null; } } return tp; } }
+    }
     if (m === 'wire' || m === 'laser') {
       if (!own || !own.alive) { s.lost = true; s.why = 'atirador destruído'; return null; }
       if (new V3(own.x, own.y, own.z).distanceTo(s.pos) > RANGE[m]) { s.lost = true; s.why = m === 'wire' ? 'fio rompido' : 'fora do alcance'; return null; }
@@ -90,7 +95,7 @@
       if (m === 'laser') {
         if (own.stat.lrfDead) { s.lost = true; s.why = 'designador destruído'; return null; }
         if (a && !los(B, eye(own), a)) { s.blk = (s.blk || 0) + dt; s.why = 'laser bloqueado'; if (s.blk > 1.2) { s.lost = true; return null; } a = s.lastSpot ? s.lastSpot.clone() : null; }
-        else if (a) { s.blk = 0; s.why = ''; s.lastSpot = a.clone(); }
+        else if (a) { s.blk = 0; s.why = ''; s.lastSpot = a.clone(); let nb = null, nd = 14; for (const o of B.ents.values()) { if (!o.alive || o.team === own.team) continue; const dd = tpos(o).distanceTo(a); if (dd < nd) { nd = dd; nb = o; } } if (nb) s.tid = nb.eid; }
       } else if (a) s.lastSpot = a.clone();
       return a;
     }

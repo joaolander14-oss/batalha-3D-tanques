@@ -81,6 +81,7 @@
     const list = tanks.filter(t => (!L.nation || L.nation === 'Todas' || t.nation === L.nation) && (!L.kind || L.kind === 'all' || (t.cat || t.kind) === L.kind));
     const net = SB.Net.status, players = SB.Lobby.players, online = L.mode !== 'solo', hosting = SB.Net.mode === 'host', joined = SB.Net.mode === 'client';
     const settings = () => ({ map: L.map, botsA: L.botsA, botsB: L.botsB, heliA: L.heliA || 0, heliB: L.heliB || 0, winKills: L.winKills, rules: L.rules || 'kills', capPoints: L.capPoints || 600, minutes: L.minutes, diffA: L.diffA == null ? 1 : L.diffA, diffB: L.diffB == null ? 1 : L.diffB, botOff: L.botOff || [] });
+    if (hosting) SB.Lobby.pushSettings(settings());
     const go = async () => {
       const info = lobbyInfo();
       if (L.mode === 'solo') return SB.Lobby.startSolo(info, settings());
@@ -134,7 +135,15 @@
       online ? div({ className: 'form' },
         div({ className: 'hint' }, net || 'Offline'),
         hosting ? div({ className: 'code' }, 'Código: ', h('b', null, SB.Net.code), ' (passe aos amigos)') : null,
-        players.map((p, i) => div({ key: i, className: 'bar' }, span({ className: 'chip', style: { background: p.team === 'A' ? '#3aa0ff' : '#ff5a4a' } }), span({ className: 'nm' }, p.name), span({ className: 'tag' }, p.tank || p.tankName || ''))),
+        players.map((p, i) => div({ key: i, className: 'bar' },
+          span({ className: 'chip', style: { background: p.team === 'A' ? '#3aa0ff' : '#ff5a4a' } }), span({ className: 'nm' }, p.name + (p.pid === SB.Lobby.myPid ? ' (você)' : '') + (p.pid === 0 ? ' ★' : '')),
+          span({ className: 'tag' }, (p.tank || p.tankName || '') + (p.ping != null && p.pid !== 0 ? ' · ' + p.ping + ' ms' : '')),
+          (hosting || p.pid === SB.Lobby.myPid) ? button({ title: 'Trocar de equipe', onClick: () => SB.Lobby.setTeam(p.pid, p.team === 'A' ? 'B' : 'A') }, '⇄ ' + (p.team === 'A' ? 'Azul' : 'Verm.')) : null,
+          hosting && p.pid !== 0 ? button({ className: 'danger', title: 'Expulsar', onClick: () => SB.Lobby.kick(p.pid) }, '×') : null)),
+        joined && SB.Lobby.ping != null ? div({ className: 'hint' }, 'Seu ping: ' + SB.Lobby.ping + ' ms · ' + (SB.Net.transport === 'p2p' ? 'conexão direta' : 'via retransmissão')) : null,
+        joined && SB.Lobby.set ? div({ className: 'hint' }, 'Partida: ' + ((SB.MAP_LIST.find(m => m.id === SB.Lobby.set.map) || {}).name || SB.Lobby.set.map) + ' · ' + (SB.Lobby.set.rules === 'capture' ? 'captura de zona' : SB.Lobby.set.winKills + ' abates') + ' · ' + SB.Lobby.set.minutes + ' min · bots A/B ' + SB.Lobby.set.botsA + '/' + SB.Lobby.set.botsB + ' + aeronaves ' + SB.Lobby.set.heliA + '/' + SB.Lobby.set.heliB) : null,
+        (hosting || joined) ? div({ className: 'chatbox', style: { maxHeight: 130, overflowY: 'auto', fontSize: 12, background: 'rgba(8,14,22,.5)', borderRadius: 5, padding: '4px 6px' } }, SB.Lobby.chat.length ? SB.Lobby.chat.map((c, i) => div({ key: i }, h('b', { style: { color: c.team === 'A' ? '#3aa0ff' : '#ff5a4a' } }, c.n + ': '), c.x)) : div({ className: 'hint' }, 'Chat da sala (também em batalha: Enter).')) : null,
+        (hosting || joined) ? h('input', { placeholder: 'Mensagem e Enter', onKeyDown: e => { if (e.key === 'Enter') { SB.Lobby.sendChat(e.target.value); e.target.value = ''; } } }) : null,
         (hosting || joined) ? button({ onClick: () => SB.Lobby.leave() }, 'Sair da sala') : null,
         joined ? div({ className: 'hint' }, 'Aguardando o anfitrião iniciar…') : null) : null,
       div({ className: 'btns' }, button({ className: 'primary big', disabled: joined, onClick: go }, L.mode === 'solo' ? '▶ INICIAR BATALHA' : L.mode === 'host' ? (hosting ? '▶ INICIAR PARA TODOS' : '🌐 CRIAR SALA') : (joined ? 'Conectado' : '🔗 ENTRAR NA SALA'))),

@@ -29,10 +29,19 @@ Os 3 mapas agora têm 3600 m: a área principal (1400 m) fica no centro, onde é
 ## Lock dos ATGM de veículos terrestres (v41)
 Todo ATGM de veículo (inclusive os disparados pelo canhão) exige escolher um tipo de lock na munição do lobby; em batalha a tecla **L** troca o lock do míssil selecionado.
 - **Fio (SACLOS):** segue a sua mira; rompe a 4000 m ou se o atirador morrer.
-- **Laser:** segue o ponto do designador (sua mira); precisa de visada limpa (terreno/fumaça bloqueiam por mais de 1,2 s = míssil perdido) e telêmetro inteiro; alcance 5500 m.
+- **Laser:** só dispara com a mira em cima de um inimigo (iluminado); o míssil segue o laser (terreno/fumaça por mais de 1,2 s = perdido) e, a 350 m do alvo, vai sozinho (terminal autônomo, não depende mais de você); alcance 5500 m.
 - **TV:** mire no alvo ~0,9 s para tirar a "foto"; dispara-e-esquece, o míssil compara com a própria visão e perde o alvo se a visada for bloqueada por mais de 3 s.
 - **IR:** trava na assinatura de calor (em movimento 1,0 · parado 0,7 · imobilizado 0,3 · fogo +0,7; alcance de detecção = calor × 3000 m); fumaça bloqueia, flares enganam helicópteros.
 - **GPS:** vai à coordenada mirada no disparo (±1–3,5 m) em mergulho por cima; não acompanha alvo que se mexe.
 
 ## Bots: veículos e dificuldade
 No lobby: dificuldade por equipe (Recruta, Normal, Veterano, Elite: pontaria, antecipação, reação, recarga e alcance de visão) e lista "Veículos dos bots" para marcar/desmarcar cada tanque, avião e helicóptero (filtro por categoria).
+
+## v44: controle de tiro, mapas e online
+- **Estabilizador** (peça `stab`): com ele o canhão fica na mira (altura e direção) andando, virando ou em rampa; sem ele (ou destruído) acompanha o balanço do casco em movimento (HUD: ESTAB ✔/✖/SEM ESTAB).
+- **Telêmetros** (peças): laser (±3 m, 4500 m), estereoscópico (±2%, 3200 m), óptico de coincidência (±5%, 2000 m). A leitura (que pode errar e expirar) alimenta a compensação de queda; sem telêmetro o canhão usa alça fixa de 300 m e o HUD mostra marcas de queda por distância. **Computador balístico** (`ballc`, exige telêmetro): avanço automático contra alvo em movimento. Canhões automáticos, mísseis e aeronaves compensam sem telêmetro.
+- **HUD da mira:** distância medida, Δh e altitude do ponto mirado, alvo (nome/velocidade), elevação do canhão, estabilizador, telêmetro, avanço, tempo de voo e alça.
+- **Elevação extra do canhão:** E sobe / Q desce (N zera) sem mexer na mira/câmera 3ª pessoa; o marcador do canhão mostra para onde vai o tiro.
+- **Laser:** só dispara com a mira no inimigo; a 350 m do alvo o míssil vai sozinho.
+- **Mapas novos (10 no total):** tundra nevada, floresta densa, vale das montanhas, vila rural, zona industrial, desfiladeiro, pântano.
+- **Online:** chat (Enter, também em batalha), troca de equipe, expulsão pelo anfitrião, ping/transporte visível, resumo da partida para os convidados, bot assume o veículo de quem sai, snapshots com pitch/roll/subida das aeronaves.

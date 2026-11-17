@@ -194,7 +194,7 @@
   };
 
   /* ---------- envio ---------- */
-  function relay(m, except) { N.conns.forEach((c, id) => { if (id !== except && c.open) try { c.send(m); } catch (e) { } }); }
+  function relay(m, except) { if (m.t === 'png' || m.t === 'team') return; N.conns.forEach((c, id) => { if (id !== except && c.open) try { c.send(m); } catch (e) { } }); }
   N.send = function (m) {
     if (N.mode === 'host') relay(m, null);
     else if (N.mode === 'client' && N.hostConn && N.hostConn.open) try { N.hostConn.send(m); } catch (e) { }

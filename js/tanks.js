@@ -125,7 +125,10 @@
     /* ---------- sistemas adicionais (peças com efeito de jogo) ---------- */
     const modern = c.cal >= 100 && c.vk >= 1.12 && c.vmax >= 48;
     if (c.stab != null ? c.stab : modern) P.push(mod('Estabilizador do canhão', 'stab', [0, gy - 0.18, mantZ + 0.95], [0.3, 0.25, 0.35], null, null, 'gun'));
-    if (c.lrf != null ? c.lrf : (c.cal >= 75 && c.vk >= 1.1 && c.vmax >= 45)) P.push(mod('Telêmetro laser', 'lrf', [0.28 * fx, gy + 0.3, mantZ + 0.5], [0.22, 0.16, 0.22], null, null, 'gun'));
+    const hasLrf = c.lrf != null ? c.lrf : (c.cal >= 75 && c.vk >= 1.1 && c.vmax >= 45), hasStab = c.stab != null ? c.stab : modern;
+    if (hasLrf) P.push(mod('Telêmetro laser', 'lrf', [0.28 * fx, gy + 0.3, mantZ + 0.5], [0.22, 0.16, 0.22], null, null, 'gun'));
+    else if (c.rf != null ? c.rf : (c.cal >= 57 && !casemate)) P.push(c.cal >= 90 && c.vk >= 1.05 ? mod('Telêmetro estereoscópico', 'rfs', [0, ty + th / 2 + 0.05, tz], [1.1, 0.14, 0.14], null, null, tg) : mod('Telêmetro óptico (coincidência)', 'rfo', [0, ty + th / 2 + 0.05, tz], [0.8, 0.14, 0.14], null, null, tg));
+    if (hasLrf && (c.ballc != null ? c.ballc : hasStab)) P.push(mod('Computador balístico', 'ballc', [-0.3 * fx, gy + 0.3, mantZ + 0.5], [0.3, 0.2, 0.3], null, null, 'gun'));
     if (c.auto && c.cal >= 90) P.push(mod('Carregador automático', 'autoload', c.ammo === 'bustle' ? [0, ty - 0.05, tz + tr * 0.35] : [0, 0.98, -0.1], [0.9 * fx, 0.3, 0.9], null, null, c.ammo === 'bustle' ? tg : 'hull'));
     if (c.fireSup != null ? c.fireSup : modern) P.push(mod('Supressão de incêndio', 'fire', [0.7 * fx, 0.9, -Lh + 1.3], [0.3, 0.3, 0.3], null, null, 'hull'));
     if (!casemate) P.push(mod('Anel da torre', 'ring', [0, Ht + 0.02, tz], [tr * 1.7, 0.1, tr * 1.7], null, null, 'hull'));

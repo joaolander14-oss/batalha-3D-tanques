@@ -132,7 +132,7 @@
     if (crew.some(p => p.sub === 'driver' && r(p) >= 1)) speedF *= 0.6;
     const gunner = crew.filter(p => p.sub === 'gunner'), loader = crew.filter(p => p.sub === 'loader');
     return {
-      hasStab: of('stab').length > 0, stabDead: dead('stab'), hasAuto: of('autoload').length > 0, autoDead: dead('autoload'), autoDmg: of('autoload').some(p => r(p) >= 0.5), ringDead: dead('ring'), lrfDead: dead('lrf'),
+      hasStab: of('stab').length > 0, stabDead: dead('stab'), hasAuto: of('autoload').length > 0, autoDead: dead('autoload'), autoDmg: of('autoload').some(p => r(p) >= 0.5), ringDead: dead('ring'), lrfDead: dead('lrf'), rf: of('lrf').length && !dead('lrf') ? 'laser' : of('rfs').length && !dead('rfs') ? 'stereo' : of('rfo').length && !dead('rfo') ? 'optic' : null, ballc: of('ballc').length > 0 && !dead('ballc'), hasRf: of('lrf').length + of('rfs').length + of('rfo').length > 0,
       hasFireSup: of('fire').length > 0, fireSupOk: of('fire').length > 0 && !dead('fire'), hasSmokeL: of('smokel').length > 0 && !dead('smokel'), hasAps: of('aps').length > 0 && !dead('aps'),
       speedF, turnF: tD >= 1 ? 0.5 : 1, gunDead: dead('breech') || dead('autoload') || (gunner.length && gunner.every(p => r(p) >= 1) && !crew.some(p => p.sub === 'commander' && r(p) < 1)),
       travF: (gunner.length && gunner.every(p => r(p) >= 1) ? 0.3 : 1) * (dead('drive') ? 0.2 : 1) * (dead('ring') ? 0.04 : 1), loaderDead: loader.length > 0 && loader.every(p => r(p) >= 1),
@@ -173,7 +173,7 @@
     if (!B.me) { B.me = [...B.ents.values()][0]; }
     B.toast = toast; B.camYaw = B.me.yaw; scene.add(new THREE.AmbientLight(0xffffff, 0.15));
     mkZones(); bind(); resize();
-    SB.Net.onMsg = onNet;
+    SB.Net.onMsg = onNet; if (SB.Lobby) SB.Lobby.onChat = chatLine;
     B.run = true; B.raf = requestAnimationFrame(loop);
     toast('Batalha iniciada! WASD move, mouse mira, clique atira, botão direito = mira telescópica.', 5);
     if (el.requestFullscreen) try { el.requestFullscreen(); } catch (e) { }
@@ -182,7 +182,7 @@
     if (!B) return; B.run = false; cancelAnimationFrame(B.raf);
     unbind(); try { document.exitPointerLock(); } catch (e) { } try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { }
     SB.FX.clear(); B.renderer.dispose(); B.el.remove(); B = null;
-    document.getElementById('root').style.display = ''; SB._paused = false; SB.Net.onMsg = SB.Lobby && SB.Lobby.onMsg;
+    document.getElementById('root').style.display = ''; SB._paused = false; SB.Net.onMsg = SB.Lobby && SB.Lobby.onMsg; if (SB.Lobby) SB.Lobby.onChat = null;
     if (!silent && SB.Lobby && SB.Lobby.onExit) SB.Lobby.onExit();
   }
   function placeAt(e, x, z, yaw) { e.x = x; e.z = z; e.yaw = yaw; e.v = 0; e.tYaw = 0; e.gP = 0; e.vy = 0; e.crash = null; e.y = B.map.H(x, z) + (e.isHeli ? (e.st.plane ? 3 : 42) : 0); if (e.isHeli) { e.pitch = 0; e.roll = 0; } if (e.st.plane) e.v = e.st.vmax / 3.6 * 0.5; poseEnt(e, 1); }
@@ -196,6 +196,9 @@
  <div id="rpf" class="frame" style="display:none;left:16px;top:62px;width:420px;height:280px"><span></span></div>
  <div id="xrf" class="frame" style="display:none;right:12px;bottom:192px;width:330px;height:230px"><span>RAIO-X DO MEU TANQUE (X)</span></div>
  <div id="status"><div id="spd">0 km/h</div><div id="rng">alcance: --</div><div id="crewl"></div><canvas id="mods" width="200" height="120"></canvas></div>
+<canvas id="ret" width="460" height="320" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none"></canvas>
+ <div id="chat" style="position:absolute;left:12px;bottom:210px;width:340px;font:12px monospace;pointer-events:none"></div><input id="chatin" maxlength="140" placeholder="Mensagem (Enter envia)" style="position:absolute;left:12px;bottom:186px;width:340px;display:none;background:rgba(8,14,22,.85);color:#e8f0ff;border:1px solid #3a6ea5;border-radius:5px;padding:4px 8px;font:12px monospace">
+ <div id="netinfo" style="position:absolute;right:12px;top:40px;font:11px monospace;color:#9fc4ff;text-align:right;pointer-events:none"></div>
  <div id="lkh" style="position:absolute;left:50%;bottom:118px;transform:translateX(-50%);font:600 13px monospace;padding:3px 10px;border-radius:5px;background:rgba(8,14,22,.7);display:none"></div>
  <div id="ammo"></div><div id="reload"><div></div></div>
  <canvas id="mini" width="170" height="170"></canvas><canvas id="rdr" width="190" height="150" style="position:absolute;right:196px;bottom:12px;border:1px solid #2f8f4f;border-radius:6px;display:none"></canvas>
@@ -209,7 +212,11 @@
   const H = { kd: null, ku: null, mm: null, md: null, mu: null, wh: null, rs: null, cm: null, pl: null };
   function bind() {
     H.kd = e => {
-      if (!B) return; if (e.repeat && e.code !== 'Space') { } B.keys[e.code] = true;
+      if (!B) return;
+      const ci = $('chatin');
+      if (document.activeElement === ci) { if (e.code === 'Enter') { SB.Lobby.sendChat(ci.value); ci.value = ''; ci.style.display = 'none'; ci.blur(); } else if (e.code === 'Escape') { ci.value = ''; ci.style.display = 'none'; ci.blur(); } e.stopPropagation(); return; }
+      if (e.code === 'Enter' && SB.Net.mode !== 'off' && !B.over) { ci.style.display = 'block'; ci.focus(); e.preventDefault(); for (const k in B.keys) B.keys[k] = false; return; }
+      B.keys[e.code] = true;
       if (e.code >= 'Digit1' && e.code <= 'Digit8') { const i = +e.code.slice(5) - 1; if (B.me.ammo[i]) { B.me.sel = i; } }
       if (e.code === 'KeyB' && B.me.isHeli) dropFlares(B.me);
       if (B.me.st.radar) { if (e.code === 'KeyZ') SB.Radar.cycleMode(B, B.me, toast); if (e.code === 'KeyT') SB.Radar.cycleTarget(B, B.me, toast); if (e.code === 'KeyY') SB.Radar.toggleLock(B, B.me, toast); }
@@ -303,9 +310,11 @@
     e.x = nx; e.z = nz;
     // torre e canhão
     if (e.alive) {
-      const lim = st.fixedGun ? 8 * D2R : 9, wantT = wrap(c.aimYaw - e.yaw), goalT = st.fixedGun ? clamp(wantT, -lim, lim) : wantT, rate = st.trav * D2R * S.travF;
+      // estabilizador: com ele o canhão fica na mira mesmo andando/virando/em rampa; sem ele acompanha o balanço do casco
+      const stabOk = e.isHeli || st.rof || (S.hasStab && !S.stabDead), mov = Math.abs(e.v) > 0.8 || Math.abs(c.steer) > 0.3, sway = stabOk || !mov ? 0 : Math.min(1, Math.abs(e.v) / 6);
+      const lim = st.fixedGun ? 8 * D2R : 9, wantT = wrap(c.aimYaw - e.yaw + Math.sin(B.t * 2.3 + e.x * 0.1) * 0.012 * sway), goalT = st.fixedGun ? clamp(wantT, -lim, lim) : wantT, rate = st.trav * D2R * S.travF * (stabOk ? (st.hasStab || S.hasStab ? 2.2 : 1) : mov ? 0.6 : 1);
       e.tYaw += clamp(wrap(goalT - e.tYaw), -rate * dt, rate * dt);
-      const wantP = c.aimPitch - e.pitch * Math.cos(e.tYaw), goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF);
+      const wantP = c.aimPitch - (stabOk || !mov ? 1 : 0.15) * e.pitch * Math.cos(e.tYaw) + Math.sin(B.t * 3.1 + e.z * 0.1) * 0.014 * sway, goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF) * (stabOk || !mov ? 1 : 0.5);
       e.gP += clamp(goalP - e.gP, -rp * dt, rp * dt);
     }
     poseEnt(e, Math.min(1, dt * 6));
@@ -781,8 +790,10 @@
       const k = B.keys, c = me.ctl; c.thr = (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0); c.steer = (k.KeyA ? 1 : 0) - (k.KeyD ? 1 : 0); if (me.isHeli) c.lift = (k.Space ? 1 : 0) - (k.ShiftLeft ? 1 : 0); else if (k.Space) { c.thr = 0; me.v *= 0.92; } c.fire = !!k.Fire;
       // ponto mirado pela câmera
       const cd = camDir(), co = camOrigin(cd), hit = rangeAlong(co, cd);
-      B.aimR = hit.r; B.aimPt = hit.p; const tp = new V3(me.x, me.y + 2.3, me.z); const aimPt = hit.p; const dv = aimPt.clone().sub(tp), hd = Math.hypot(dv.x, dv.z), A = me.ammo[me.sel].A;
-      c.aimYaw = Math.atan2(-dv.x, -dv.z); c.aimPitch = Math.atan2(dv.y, hd) + droop(A, me.stat.lrfDead ? Math.max(30, Math.round(dv.length() / 150) * 150 * (1 + Math.sin(B.t * 0.7) * 0.12)) : Math.max(30, dv.length()));
+      B.aimR = hit.r; B.aimPt = hit.p; B.aimEnt = hit.e || null; const tp = new V3(me.x, me.y + 2.3, me.z), A = me.ammo[me.sel].A;
+      if (!me.isHeli) { if (k.KeyE) B.gOff = Math.min(0.35, (B.gOff || 0) + 0.06 * dt); if (k.KeyQ) B.gOff = Math.max(-0.2, (B.gOff || 0) - 0.06 * dt); if (k.KeyN) B.gOff = 0; }   // elevação extra do canhão, independente da mira
+      const fcs = SB.FCS.solve(B, me, hit, A, dt), dv = fcs.pt.clone().sub(tp), hd = Math.hypot(dv.x, dv.z);
+      c.aimYaw = Math.atan2(-dv.x, -dv.z); c.aimPitch = Math.atan2(dv.y, hd) + droop(A, fcs.r) + (me.isHeli ? 0 : B.gOff || 0);
       if (me.isHeli || me.st.radar) SB.Radar.tick(B, me, dt);
       SB.Locks.tick(B, me, dt, cd);
       if (me.st.plane) { c.steer = clamp(clamp(wrap(B.camYaw - me.yaw) * 2.6, -1, 1) + ((k.KeyA ? 1 : 0) - (k.KeyD ? 1 : 0)) * 0.3, -1, 1); c.lift = clamp((B.camPitch - me.pitch) * 3.5, -1, 1); }   // avião: o nariz segue a mira do mouse
@@ -824,13 +835,13 @@
     const k = 1 - Math.exp(-dt * 10);
     s.x += -Math.sin(s.yaw) * s.v * dt; s.z += -Math.cos(s.yaw) * s.v * dt;
     e.x += (s.x - e.x) * k; e.z += (s.z - e.z) * k; e.yaw += wrap(s.yaw - e.yaw) * k; e.tYaw += wrap(s.tYaw - e.tYaw) * k; e.gP += (s.gP - e.gP) * k; e.v = s.v;
-    if (e.isHeli && s.y != null) { e.y += (s.y - e.y) * k; e.pitch += (-(s.v / Math.max(e.st.vmax / 3.6, 1)) * 0.3 - e.pitch) * k; }
+    if (e.isHeli && s.y != null) { s.y += (s.vy || 0) * dt; e.y += (s.y - e.y) * k; e.pitch += (s.pitch - e.pitch) * k; e.roll += (s.roll - e.roll) * k; e.vy = s.vy || 0; }
     poseEnt(e, Math.min(1, dt * 6));
   }
   function netState() {
     if (SB.Net.mode === 'off') return;
     if (B.zones.length && B.cfg.mode !== 'client') { B.zN = (B.zN || 0) - 0.07; if (B.zN <= 0) { B.zN = 0.5; SB.Net.send({ t: 'z', c: B.zones.map(z => +z.cap.toFixed(3)), o: B.zones.map(z => z.owner || ''), p: [Math.floor(B.pts.A), Math.floor(B.pts.B)] }); } }
-    const arr = []; for (const e of B.ents.values()) if (e.owner === B.myPeer && e.alive) arr.push([e.eid, +e.x.toFixed(2), +e.z.toFixed(2), +e.yaw.toFixed(3), +e.tYaw.toFixed(3), +e.gP.toFixed(3), +e.v.toFixed(2), +e.y.toFixed(1)]);
+    const arr = []; for (const e of B.ents.values()) if (e.owner === B.myPeer && e.alive) arr.push([e.eid, +e.x.toFixed(2), +e.z.toFixed(2), +e.yaw.toFixed(3), +e.tYaw.toFixed(3), +e.gP.toFixed(3), +e.v.toFixed(2), +e.y.toFixed(1), +(e.pitch || 0).toFixed(3), +(e.roll || 0).toFixed(3), +(e.vy || 0).toFixed(2)]);
     if (arr.length) SB.Net.send({ t: 's', a: arr });
     const gm = B.shells.filter(q => q.mine && q.guid).map(q => [q.id, +q.pos.x.toFixed(1), +q.pos.y.toFixed(1), +q.pos.z.toFixed(1), +q.vel.x.toFixed(1), +q.vel.y.toFixed(1), +q.vel.z.toFixed(1)]);
     if (gm.length) SB.Net.send({ t: 'm', a: gm });
@@ -838,7 +849,7 @@
   function onNet(m, from) {
     if (!B) { SB.Lobby && SB.Lobby.onMsg && SB.Lobby.onMsg(m, from); return; }
     switch (m.t) {
-      case 's': m.a.forEach(r => { const e = B.ents.get(r[0]); if (!e || e.owner === B.myPeer) return; const sn = { x: r[1], z: r[2], yaw: r[3], tYaw: r[4], gP: r[5], v: r[6], y: r[7] }; if (!e.snap) { e.x = sn.x; e.z = sn.z; e.yaw = sn.yaw; e.tYaw = sn.tYaw; e.gP = sn.gP; } e.snap = sn; }); break;
+      case 's': m.a.forEach(r => { const e = B.ents.get(r[0]); if (!e || e.owner === B.myPeer) return; const sn = { x: r[1], z: r[2], yaw: r[3], tYaw: r[4], gP: r[5], v: r[6], y: r[7], pitch: r[8] || 0, roll: r[9] || 0, vy: r[10] || 0 }; if (!e.snap) { e.x = sn.x; e.z = sn.z; e.yaw = sn.yaw; e.tYaw = sn.tYaw; e.gP = sn.gP; } e.snap = sn; }); break;
       case 'f': { const e = B.ents.get(m.e); if (!e || e.owner === B.myPeer) break; const sl = e.ammo[m.a]; if (!sl) break; sl.n = Math.max(0, sl.n - 1); const p = new V3(...m.p); spawnShell(m.e, m.a, sl.A, p, new V3(...m.v), { id: m.id, lock: m.lk, ba: m.ba }); SB.Visual.muzzle(sl.A, p, new V3(...m.v).normalize(), e); break; }
       case 'm': m.a.forEach(r => { const q = B.shells.find(x => x.id === r[0]); if (q && !q.mine) { q.pos.set(r[1], r[2], r[3]); q.vel.set(r[4], r[5], r[6]); } }); break;
       case 'd': { const ent = B.ents.get(m.e); if (ent && ent.owner !== B.myPeer) showHit(m, false); break; }
@@ -851,7 +862,9 @@
       case 'z': if (B.cfg.mode === 'client') { m.c.forEach((c, i) => { if (B.zones[i]) { B.zones[i].cap = c; B.zones[i].owner = m.o[i] || null; } }); B.pts.A = m.p[0]; B.pts.B = m.p[1]; } break;
       case 'rep': { const e = B.ents.get(m.e); if (!e || e.owner === B.myPeer) break; if (m.f) { e.dmg = {}; e._dead = {}; e.burning = false; e.pen = null; e.ammo.forEach(a => { a.n = a.n0; }); } else e.def.parts.forEach(p => { if (p.kind !== 'armor' && p.kind !== 'crew') delete e.dmg[p.id]; }); e.stat = evalDmg(e); break; }
       case 'abort': case 'hostLeft': toast('O anfitrião encerrou a partida.', 3); setTimeout(() => stop(), 1500); break;
-      case 'left': { for (const e of B.ents.values()) if (e.owner === from) { e.alive = false; e.snap = null; e.G.visible = false; } break; }
+      case 'left': { for (const e of B.ents.values()) if (e.owner === from) { e.owner = B.myPeer; e.bot = true; e.snap = null; if (e.name.indexOf('[BOT]') < 0) e.name = '[BOT] ' + e.name; SB.Net.send({ t: 'own', e: e.eid, n: e.name, o: B.myPeer }); addFeed(e.name + ' assumido por bot (jogador saiu)', e.team); } break; }
+      case 'own': { const e = B.ents.get(m.e); if (e) { e.owner = m.o; e.bot = false; e.snap = null; e.name = m.n; addFeed(m.n + ' assumido por bot (jogador saiu)', e.team); } break; }
+      case 'png': case 'pong': case 'chat': case 'kick': case 'team': case 'lobby': SB.Lobby && SB.Lobby.onMsg(m, from); break;
     }
   }
   function checkEnd() { if (B.cfg.mode === 'client' || B.cfg.rules === 'capture') return; if (B.score.A >= B.cfg.winKills) endMatch('A'); else if (B.score.B >= B.cfg.winKills) endMatch('B'); }
@@ -960,12 +973,20 @@
     const t = new V3(me.x, me.y + 3.0, me.z), p = t.clone().addScaledVector(d, -B.dist); const gh = B.map.H(p.x, p.z) + 1.6; if (p.y < gh) p.y = gh; return p;
   }
   function rangeAlong(o, d) {
+    let rt = 3200, pt = null;
     for (let r = 12; r < 3200; r += (r < 400 ? 6 : 14)) {
       const x = o.x + d.x * r, y = o.y + d.y * r, z = o.z + d.z * r;
-      if (B.map.H(x, z) > y || B.map.hit(x, y, z)) return { r, p: new V3(x, y, z) };
-      for (const e of B.ents.values()) if (e !== B.me && e.alive && Math.hypot(e.x - x, e.z - z) < (e.isHeli ? 7 : 3.4) && y < e.y + (e.isHeli ? 4 : 3.4) && y > e.y - (e.isHeli ? 2 : 0)) return { r, p: new V3(x, y, z) };
+      if (B.map.H(x, z) > y || B.map.hit(x, y, z)) { rt = r; pt = new V3(x, y, z); break; }
     }
-    return { r: 3200, p: o.clone().addScaledVector(d, 3200) };
+    let best = null, bt = rt;      // entidades: interseção analítica raio × esfera (não "pula" alvos longe)
+    for (const e of B.ents.values()) {
+      if (e === B.me || !e.alive) continue;
+      const cx = e.x - o.x, cy = e.y + 1.5 - o.y, cz = e.z - o.z, t = cx * d.x + cy * d.y + cz * d.z; if (t < 4 || t >= bt) continue;
+      const px = cx - d.x * t, py = cy - d.y * t, pz = cz - d.z * t, rad = e.isHeli ? 6 : 3.4;
+      if (px * px + py * py + pz * pz < rad * rad) { best = e; bt = t; }
+    }
+    if (best) return { r: bt, p: new V3(o.x + d.x * bt, o.y + d.y * bt, o.z + d.z * bt), e: best };
+    return pt ? { r: rt, p: pt } : { r: 3200, p: o.clone().addScaledVector(d, 3200) };
   }
   function render(dt) {
     const me = B.me, cam = B.camera, d = camDir(), o = camOrigin(d);
@@ -983,6 +1004,9 @@
   const proj = (p) => { const v = p.clone().project(B.camera); return v.z > 1 || v.z < -1 ? null : [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight]; };
   function toast(t, sec) { if (!B) return; const m = $('msg'); m.textContent = t; m.style.opacity = 1; clearTimeout(B.mt); B.mt = setTimeout(() => { if (B) m.style.opacity = 0; }, (sec || 2) * 1000); }
   function hitMsg(t, col, who) { const m = $('hitmsg'); m.innerHTML = '<small>' + who + '</small><br>' + t; m.style.color = col; m.style.opacity = 1; clearTimeout(B.ht); B.ht = setTimeout(() => { if (B) m.style.opacity = 0; }, 3500); }
+  function chatLine(e) {
+    if (!B) return; B.chatL = B.chatL || []; B.chatL.push({ n: e.n, team: e.team, x: e.x, at: B.t }); B.chatL = B.chatL.slice(-8);
+  }
   function addFeed(t, team) { B.feed.unshift({ t, team, at: B.t }); B.feed = B.feed.slice(0, 6); }
   const mm = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   function hud() {
@@ -996,6 +1020,8 @@
       else if (me.alive && serviceFor(me) && needsService(me)) t = '🔧 Ponto de manutenção: pare' + (me.isHeli ? ' e pouse' : '') + ' (' + serviceFor(me) + ' s)';
       else if (me.alive && (nonCrewDmg(me) || me.burning) && me.repairsLeft > 0) t = 'Danificado: G repara no lugar (' + me.repairsLeft + ' restantes)';
       sv.textContent = t; sv.style.display = t ? 'block' : 'none'; }
+    { const cl = $('chat'), ci = $('chatin'), esc = x => String(x).replace(/[<>&]/g, ''); cl.innerHTML = (B.chatL || []).filter(c => ci.style.display === 'block' || B.t - c.at < 12).map(c => '<div style="color:#e8f0ff;text-shadow:0 0 3px #000"><b style="color:' + (TEAMCOL[c.team] || '#fff') + '">' + esc(c.n) + ':</b> ' + esc(c.x) + '</div>').join('');
+      const ni = $('netinfo'), N = SB.Net, L = SB.Lobby; ni.textContent = N.mode === 'client' ? 'ping ' + (L.ping == null ? '--' : L.ping + ' ms') + ' · ' + (N.transport === 'p2p' ? 'direto' : 'retransmissão') : N.mode === 'host' ? 'anfitrião · ' + (L.players.length) + ' jogador(es) · Enter = chat' : ''; if (N.mode === 'client') ni.textContent += ' · Enter = chat'; }
     $('feed').innerHTML = B.feed.filter(f => B.t - f.at < 12).map(f => '<div style="color:' + TEAMCOL[f.team] + '">' + f.t + '</div>').join('');
     { const cv = $('rdr'); if (me.st.radar) SB.Radar.draw(B, me, cv); else cv.style.display = 'none'; }
     $('spd').textContent = Math.round(Math.abs(me.v) * 3.6) + ' km/h' + (me.isHeli ? ' · alt ' + Math.round(me.y - B.map.H(me.x, me.z)) + ' m' : '') + '  |  ' + me.def.name;
@@ -1003,13 +1029,14 @@
     const s = me.stat; $('crewl').innerHTML = 'Tripulação ' + s.crew + '/' + s.crewTotal + (s.gunDead ? ' · CANHÃO FORA' : '') + (s.rotorDead ? ' · ROTOR PERDIDO' : '') + (s.tailDead ? ' · ROTOR DE CAUDA PERDIDO' : '') + (s.speedF === 0 ? ' · IMOBILIZADO' : s.speedF < 0.7 ? ' · AVARIADO' : '') + (function () { const sy = []; if (s.hasStab) sy.push('Estabilizador ' + (s.stabDead ? '✖' : '✔')); if (s.hasAuto) sy.push('Autoloader ' + (s.autoDead ? '✖' : s.autoDmg ? '⚠' : '✔')); if (s.ringDead) sy.push('Anel da torre ✖'); if (s.lrfDead) sy.push('Telêmetro ✖'); if (s.hasFireSup) sy.push('Extintor auto ' + (me.fireLeft == null ? 2 : me.fireLeft)); if (s.hasAps) sy.push('APS ' + (me.apsLeft == null ? 3 : me.apsLeft)); if (s.hasSmokeL) sy.push('Fumaça(V) ' + (me.smokeLeft == null ? 2 : me.smokeLeft)); return sy.length ? '<br><small>' + sy.join(' · ') + '</small>' : ''; })();
     $('ammo').innerHTML = me.ammo.map((a, i) => '<div class="am' + (i === me.sel ? ' on' : '') + '"><b>' + (i + 1) + '</b> ' + ({ gun: '', rocket: '🚀 ', missile: '➶ ', aam: '✈ ', bomb: '💣 ' }[a.A.wc] || '') + (a.A.shortName || a.A.name) + '<br><span>' + a.A.type + ' · ' + a.n + (a.lk ? ' · 🔒' + SB.Locks.MODES[a.lk].s : '') + '</span></div>').join('');
     { const lh = $('lkh'), L = B.lk, fl = B.shells.filter(q => q.mine && q.lk && q.owner === me.eid).pop(); let t = '', col = '#7fe38f';
-      if (fl) { t = 'MÍSSIL ' + SB.Locks.MODES[fl.lk].s + (fl.lost ? ': PERDIDO' + (fl.why ? ' (' + fl.why + ')' : '') : fl.why ? ': ' + fl.why : ': guiando'); col = fl.lost || fl.why ? '#ff8a6a' : '#7fe38f'; }
+      if (fl) { t = 'MÍSSIL ' + SB.Locks.MODES[fl.lk].s + (fl.lost ? ': PERDIDO' + (fl.why ? ' (' + fl.why + ')' : '') : fl.why ? ': ' + fl.why : fl.term ? ': TERMINAL AUTÔNOMO' : ': guiando'); col = fl.lost || fl.why ? '#ff8a6a' : '#7fe38f'; }
       else if (L && me.alive) { t = L.msg || ''; col = L.ok ? '#7fe38f' : '#ffd06a'; if (t) t += '  [L troca lock]'; }
       lh.textContent = t; lh.style.color = col; lh.style.display = t ? 'block' : 'none'; }
     const rt = me.isHeli ? 1 / ((me.ammo[me.sel].A.rof) || 4) : reloadT(me), rr = me.reload > 0 ? 1 - me.reload / Math.max(rt, 0.05) : 1; $('reload').firstChild.style.width = clamp(rr, 0, 1) * 100 + '%'; $('reload').style.opacity = rr < 1 ? 1 : 0.35;
     // marcador do canhão
     const gm = $('gunmk'); const { p, d } = muzzleInfo(me), R = Math.min(B.aimR, 2500), A = me.ammo[me.sel].A, pt = p.clone().addScaledVector(d, R); pt.y -= R * Math.tan(droop(A, R)); const sp = proj(pt);
     gm.style.display = sp && me.alive ? 'block' : 'none'; if (sp) { gm.style.left = sp[0] + 'px'; gm.style.top = sp[1] + 'px'; }
+    SB.FCS.draw(B, me, $('ret'));
     $('scope').style.display = B.scope ? 'block' : 'none'; $('cross').style.display = B.scope ? 'none' : 'block';
     drawMods(me); drawMini(me);
   }
@@ -1052,5 +1079,5 @@
     $('score').innerHTML = '<table><tr><th>Jogador</th><th>Tanque</th><th>Equipe</th><th>Abates</th><th>Mortes</th></tr>' + rows.map(e => '<tr style="color:' + TEAMCOL[e.team] + '"><td>' + e.name + '</td><td>' + e.def.name + '</td><td>' + (e.team === 'A' ? 'Azul' : 'Verm.') + '</td><td>' + e.kills + '</td><td>' + e.deaths + '</td></tr>').join('') + '</table>';
   }
 
-  SB.Battle = { step(dt) { update(dt); }, dropFlares, start, stop, get state() { return B; }, defaultLoadout };
+  SB.Battle = { droop, step(dt) { update(dt); }, dropFlares, start, stop, get state() { return B; }, defaultLoadout };
 })(window.SB);
