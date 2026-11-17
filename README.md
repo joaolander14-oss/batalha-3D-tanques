@@ -19,3 +19,6 @@ W/S acelera, A/D vira (helicóptero: Espaço sobe, Shift desce), mouse mira, cli
 
 ## Radar (aviões)
 Z muda o modo do radar (RWS, TWS, ACM, SOLO), T marca o próximo alvo, Y trava/destrava (STT). Filtro Doppler, radar de pulso sem look-down, alerta de radar (RWR), mísseis SARH/ARH exigem alvo no radar e ARM caçam emissores. Aviões furtivos (F-22, F-35, Su-57, J-20, F-117, B-2) não aparecem no radar; só mísseis IR e a vista os pegam.
+
+## Antiaéreas, flares e propelente
+Veículos antiaéreos (SAM e canhão) têm radar de busca 360° (Z liga/desliga, T marca, Y trava); SAMs de radar (Buk, Tor, Roland, Hawk…) exigem alvo no radar, SAMs IR (Stinger, Igla…) não. Aeronaves têm flares (B): mísseis IR podem ser enganados por eles; todo míssil guiado pode perder o alvo (fora do campo do buscador, manobra a 90° contra radar, solo, distância). Foguetes e mísseis têm tempo de propelente: ao acabar, somem a chama e a fumaça e eles só planam/caem.

@@ -109,7 +109,8 @@
     m.position.copy(s.pos);
     if (st.body === 'streak') m.quaternion.setFromUnitVectors(Y, d);
     else { m.lookAt(s.pos.clone().add(d)); const fl = m.userData.flame; if (fl) { fl.scale.set(0.8 + Math.random() * 0.4, 0.8 + Math.random() * 0.4, 0.8 + Math.random() * 0.5); } if (m.userData.glow) m.userData.glow.scale.setScalar(st.glow * (0.8 + Math.random() * 0.4)); if (s.rocket && !s.guid) m.rotateZ(s.age * 6); }
-    if (st.trail && prev) SB.FX.trailSeg(prev, s.pos, st.trail);
+    if (s.burnt) { const mu = m.userData; if (mu.flame) mu.flame.visible = false; if (mu.glow) mu.glow.visible = false; }   // propelente acabou: sem chama nem fumaça
+    if (st.trail && prev && !s.burnt) SB.FX.trailSeg(prev, s.pos, st.trail);
   }
   function dispose(m) { m.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose && o.material.dispose(); }); }
 

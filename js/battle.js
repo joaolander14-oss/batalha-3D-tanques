@@ -96,7 +96,8 @@
     };
     ent.ammo = (spec.loadout || defaultLoadout(ent.st)).filter(l => l.n > 0 || true).slice(0, ent.st.kind === 'heli' ? 8 : 4).map(l => ({ src: l.ammo, A: SB.ammoForGun(l.ammo, ent.st), n: l.n, n0: l.n }));
     if (!ent.ammo.length) ent.ammo = defaultLoadout(ent.st).map(l => ({ src: l.ammo, A: SB.ammoForGun(l.ammo, ent.st), n: l.n, n0: l.n }));
-    ent.isHeli = ent.st.kind === 'heli'; ent.vy = 0; ent.fireLeft = 2; ent.apsLeft = 3; ent.smokeLeft = 2; ent.repairsLeft = 3; ent.rep = null; ent.svT = 0;
+    ent.isHeli = ent.st.kind === 'heli'; ent.vy = 0; ent.fireLeft = 2; ent.apsLeft = 3; ent.smokeLeft = 2; ent.repairsLeft = 3; ent.rep = null; ent.svT = 0; ent.flares = ent.isHeli ? (ent.st.plane ? 60 : 40) : 0;
+    if (!ent.isHeli && !ent.st.radar && (ent.st.sam || (ent.st.rof && ent.st.elev && ent.st.elev[1] > 60))) ent.st.radar = { R: ent.st.sam ? 3400 : 2300, pd: true, sweep: true };
     ent.rad = ent.isHeli ? 0.5 * ent.st.bodyLen + 1.5 : 0.5 * Math.hypot(ent.st.bodyLen, ent.st.bodyWid) + 0.8;
     buildObj(ent); B.scene.add(ent.G);
     ent.stat = evalDmg(ent);
@@ -155,7 +156,7 @@
     SB.FX.init(scene); SB.FX.listener = camera.position;
     B = {
       shakeMul: (function () { try { const v = parseFloat(localStorage.getItem('sb.shake')); return isFinite(v) ? v : 1; } catch (e) { return 1; } })(),
-      myPeer: cfg.myPeer, cfg, map, el, renderer, scene, camera, ents: new Map(), shells: [], keys: {}, camYaw: 0, camPitch: 0.05, dist: 15, scope: false, zoom: 12, last: performance.now(), run: true, score: { A: 0, B: 0 },
+      myPeer: cfg.myPeer, cfg, map, el, renderer, scene, camera, ents: new Map(), shells: [], cm: [], keys: {}, camYaw: 0, camPitch: 0.05, dist: 15, scope: false, zoom: 12, last: performance.now(), run: true, score: { A: 0, B: 0 },
       feed: [], msgT: 0, hudT: 0, netT: 0, shake: 0, lock: false, over: false, t: 0, me: null, tracers: new THREE.Group(), smokes: [], flares: [], aimPt: null, zones: [], pts: { A: 0, B: 0 }, names: [], aimR: 500, fovBase: 60, bots: [], paused: false,
     };
     scene.add(B.tracers);
@@ -208,7 +209,8 @@
     H.kd = e => {
       if (!B) return; if (e.repeat && e.code !== 'Space') { } B.keys[e.code] = true;
       if (e.code >= 'Digit1' && e.code <= 'Digit8') { const i = +e.code.slice(5) - 1; if (B.me.ammo[i]) { B.me.sel = i; } }
-      if (B.me.isHeli) { if (e.code === 'KeyZ') SB.Radar.cycleMode(B, B.me, toast); if (e.code === 'KeyT') SB.Radar.cycleTarget(B, B.me, toast); if (e.code === 'KeyY') SB.Radar.toggleLock(B, B.me, toast); }
+      if (e.code === 'KeyB' && B.me.isHeli) dropFlares(B.me);
+      if (B.me.st.radar) { if (e.code === 'KeyZ') SB.Radar.cycleMode(B, B.me, toast); if (e.code === 'KeyT') SB.Radar.cycleTarget(B, B.me, toast); if (e.code === 'KeyY') SB.Radar.toggleLock(B, B.me, toast); }
       if (e.code === 'KeyF') extinguish(B.me);
       if (e.code === 'KeyG') startRepair(B.me);
       if (e.code === 'KeyV') launchSmoke(B.me);
@@ -365,10 +367,32 @@
   }
 
   /* ---------------- tiros ---------------- */
+  /* o buscador pode perder o alvo: sai do campo de visão, flares (IR), manobra a 90° (radar), solo, distância */
+  function seekerCheck(s, t, dir, dt) {
+    const A = s.A, to = new V3(t.x - s.pos.x, t.y - s.pos.y, t.z - s.pos.z), r = to.length(), ang = dir.angleTo(to);
+    let h = t.isHeli ? 0.13 : 0.02; if (t.isHeli && t.ctl) h += Math.abs(t.ctl.steer || 0) * 0.4;
+    if (ang > 0.5) h += 0.7;
+    if (t.isHeli && A.guid === 'ir' && !A.radar) {
+      for (const f of B.cm) { if (f.t <= 0) continue; const fv = new V3().subVectors(f.pos, s.pos); if (fv.length() < 900 && fv.angleTo(dir) < 0.45 && Math.random() < 3.5 * dt) { s.decoy = f; return; } }
+    }
+    if (t.isHeli && A.radar) { const u = to.clone().normalize(), vr = -Math.sin(t.yaw) * t.v * u.x + (t.vy || 0) * u.y - Math.cos(t.yaw) * t.v * u.z; if (Math.abs(vr) < 25) h += 0.9; if (t.y - B.map.H(t.x, t.z) < 40) h += 0.25; }
+    if (r > 2600) h += 0.1;
+    if (Math.random() < h * dt) s.lost = true;
+  }
+  /* flares: iscas de calor que enganam mísseis IR */
+  function addFlare(p, v) { B.cm.push({ pos: p, vel: v, t: 4.5 + Math.random() }); }
+  function dropFlares(e) {
+    if (!e.alive || !e.isHeli || (e.flares || 0) <= 0 || B.t - (e.flT || -9) < 0.45) return false;
+    e.flT = B.t; e.flares -= 4; const out = [];
+    for (let k = 0; k < 4; k++) { const p = new V3(e.x + (Math.random() - 0.5) * 3, e.y - 1, e.z + (Math.random() - 0.5) * 3), v = new V3(-Math.sin(e.yaw) * e.v * 0.25 + (Math.random() - 0.5) * 40, -5 - Math.random() * 4, -Math.cos(e.yaw) * e.v * 0.2 + (Math.random() - 0.5) * 40); addFlare(p, v); out.push([p.x, p.y, p.z, v.x, v.y, v.z]); }
+    SB.Net.send({ t: 'fl', f: out }); if (e === B.me) toast('Flares lançados (' + e.flares + ' restantes)', 1);
+    return true;
+  }
   function guideDir(s, dir, dt) {
-    if (!s.mine) return dir;
+    if (!s.mine || s.lost) return dir;
     const A = s.A, own = B.ents.get(s.owner); let aim = null;
-    if (s.lock) { const t = B.ents.get(s.lock); if (t && t.alive) aim = new V3(t.x, t.y + 1.6, t.z); else s.lock = null; }
+    if (s.decoy) { if (s.decoy.t > 0) aim = s.decoy.pos.clone(); else { s.lost = true; return dir; } }
+    else if (s.lock) { const t = B.ents.get(s.lock); if (t && t.alive) { aim = new V3(t.x, t.y + 1.6, t.z); seekerCheck(s, t, dir, dt); if (s.lost) return dir; if (s.decoy) aim = s.decoy.pos.clone(); } else s.lock = null; }
     if (!aim) { if (own === B.me && B.aimPt) aim = B.aimPt.clone(); else if (own && own.ai && own.ai.tg) aim = new V3(own.ai.tg.x, own.ai.tg.y + 1.6, own.ai.tg.z); }
     if (!aim) return dir;
     s.gp = aim.clone();
@@ -385,14 +409,17 @@
   }
   function stepShells(dt) {
     for (let i = B.shells.length - 1; i >= 0; i--) {
-      const s = B.shells[i], A = s.A, powered = s.rocket || (s.guid && !A.bomb), v = s.vel.length();
+      const s = B.shells[i], A = s.A, isP = s.rocket || (s.guid && !A.bomb), v = s.vel.length();
       s.age += dt;
+      if (isP && !s.burnt && s.age > (A.burn || 1.2)) s.burnt = true;      // acabou o propelente
+      const powered = isP && !s.burnt;
       if (powered) {
-        const k = clamp(0.3 + 0.7 * s.age / A.burn, 0.3, 1), tgt = A.v0 * k;
+        const k = clamp(0.3 + 0.7 * s.age / Math.min(A.burn || 1.2, 1.5), 0.3, 1), tgt = A.v0 * k;
         let dir = s.vel.clone().normalize();
         if (s.rocket && !s.guid) { dir.y -= G * 0.12 * dt / Math.max(tgt, 50); dir.normalize(); }
         if (s.guid) dir = guideDir(s, dir, dt);
         s.vel.copy(dir.multiplyScalar(tgt));
+      } else if (isP && s.guid) { s.vel.multiplyScalar(Math.exp(-A.k * 0.35 * v * dt)); if (v < 160) s.vel.y -= G * dt; if (v < 110) s.lost = true; const sp1 = Math.max(1, s.vel.length()); s.vel.copy(guideDir(s, s.vel.clone().normalize(), dt * 0.5).multiplyScalar(sp1));
       } else { s.vel.multiplyScalar(Math.exp(-A.k * v * dt)); s.vel.y -= G * dt; if (A.bomb && s.guid) { const sp0 = Math.max(1, s.vel.length()); s.vel.copy(guideDir(s, s.vel.clone().normalize(), dt).multiplyScalar(sp0)); } }
       const p0 = s.pos, d = s.vel.clone(), sp = d.length(); d.multiplyScalar(1 / sp); const len = sp * dt;
       s.dist += len;
@@ -403,7 +430,8 @@
         const c = new V3(e.x, e.y + 1.3, e.z), oc = c.clone().sub(p0), tp = oc.dot(d), dd = oc.lengthSq() - tp * tp;
         // espoletas de proximidade e ataque por cima (EFP)
         if (!s.dead && apsCheck(s, e)) { s.dead = 'aps'; break; }
-        if (!s.dead && (A.burst === 'prox' || ir) && c.distanceTo(p0) < (ir ? 9 : 6.5) && s.age > 0.3) { s.dead = 'burst'; break; }
+        if (!s.dead && s.decoy && s.decoy.t > 0 && s.decoy.pos.distanceTo(p0) < 8) { s.dead = 'burst'; break; }
+        if (!s.dead && !s.decoy && (A.burst === 'prox' || ir) && c.distanceTo(p0) < (ir ? 9 : 6.5) && s.age > 0.3) { s.dead = 'burst'; break; }
         if (A.guid === 'over' && s.age > 0.4 && Math.hypot(e.x - p0.x, e.z - p0.z) < 3.8 && p0.y - e.y > 1.2 && p0.y - e.y < 14) { s.dead = 'efp'; s.tgt = e; break; }
         if (dd > e.rad * e.rad || tp < -e.rad || tp > len + e.rad) continue;
         updateWorld(e); const t0 = SB.Sim.probe(SB.Sim.prepare({ parts: e.wparts }), p0, d);
@@ -418,7 +446,7 @@
       if (best && (gt == null || best.t <= gt)) { hitTank(s, best.ent, p0.clone(), d, sp); removeShell(i); continue; }
       if (gt != null) { const hp = p0.clone().addScaledVector(d, gt); groundImpact(s, hp); removeShell(i); continue; }
       const prevP = s.pos.clone(); s.pos.addScaledVector(d, len); SB.Visual.update(s, d, prevP);
-      if (s.age > (powered ? 40 : 14) || s.pos.y < -80 || Math.abs(s.pos.x) > B.map.half + 300 || Math.abs(s.pos.z) > B.map.half + 300) removeShell(i);
+      if (s.age > (isP ? 40 : 14) || s.pos.y < -80 || Math.abs(s.pos.x) > B.map.half + 300 || Math.abs(s.pos.z) > B.map.half + 300) removeShell(i);
     }
   }
   function removeShell(i) { const s = B.shells[i]; B.tracers.remove(s.mesh); SB.Visual.dispose(s.mesh); B.shells.splice(i, 1); }
@@ -536,7 +564,7 @@
   }
   function extinguish(e) { if (!e.burning || e.ext <= 0) return; e.ext--; if (Math.random() < 0.75) { e.burning = false; SB.Net.send({ t: 'ext', e: e.eid }); toast('Incêndio apagado!', 2); } else toast('Extintor falhou!', 2); }
   function respawnEnt(e, x, z, yaw) {
-    e.alive = true; e.fireLeft = 2; e.apsLeft = 3; e.smokeLeft = 2; e.repairsLeft = 3; e.rep = null; e.svT = 0; e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.reload = 3; e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); e.det = false;
+    e.alive = true; e.fireLeft = 2; e.apsLeft = 3; e.smokeLeft = 2; e.repairsLeft = 3; e.rep = null; e.svT = 0; e.flares = e.isHeli ? (e.st.plane ? 60 : 40) : 0; e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.reload = 3; e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); e.det = false;
     e.mats.body.color.setHex(PAINT[e.def.nation || 'Customizado'] || 0x6d7163); e.mats.body.emissive.copy(new THREE.Color(TEAMCOL[e.team]).multiplyScalar(0.07));
     e.T.position.set(...e.st.turPivot); e.T.rotation.set(0, 0, 0); e.tv = null; e.respawn = 0; e.tYaw = 0; e.gP = 0; e.snap = null; e.pen = null; placeAt(e, x, z, yaw);
     if (e === B.me) { B.camYaw = yaw; }
@@ -558,7 +586,7 @@
   const lowSupplies = e => { const t0 = e.ammo.reduce((a, s) => a + s.n0, 0) || 1, t = e.ammo.reduce((a, s) => a + s.n, 0); return t / t0 < 0.25 || e.stat.speedF < 0.6 || e.stat.gunDead || e.stat.crew < e.stat.crewTotal - 1; };
   const isSlow = e => e.isHeli ? (e.st.plane ? e.y - B.map.H(e.x, e.z) < 26 : (Math.abs(e.v) < 6 && e.y - B.map.H(e.x, e.z) < 7)) : Math.abs(e.v) < 1.6;
   function fullService(e) {
-    e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.pen = null; e.repairsLeft = 3; e.fireLeft = 2; e.apsLeft = 3; e.smokeLeft = 2; e.rep = null;
+    e.dmg = {}; e._dead = {}; e.burning = false; e.burn = 0; e.ext = 1; e.pen = null; e.repairsLeft = 3; e.fireLeft = 2; e.apsLeft = 3; e.smokeLeft = 2; e.rep = null; e.flares = e.isHeli ? (e.st.plane ? 60 : 40) : 0;
     e.ammo.forEach(a => { a.n = a.n0; }); e.stat = evalDmg(e); SB.Net.send({ t: 'rep', e: e.eid, f: 1 });
     if (e === B.me) toast('✔ Reabastecido e reparado por completo!', 2.5);
   }
@@ -656,10 +684,11 @@
       ai.t = 0.6 + Math.random() * 0.4; let best = null, bd = 1e9;
       enemies(e).forEach(o => { const d0 = Math.hypot(o.x - e.x, o.z - e.z), d = d0 * (e.st.plane && !o.isHeli ? 0.5 : 1); if (o.isHeli && !(d0 < 1500 && !(o.st.stealth && d0 > 800)) && !(e.st.radar && SB.Radar.seen(B, e, o, SB.Radar.MODES[1]))) return; if (d0 < 2800 && d < bd) { bd = d; best = o; } });
       ai.tg = best; ai.los = best ? B.map.los(pos, new V3(best.x, best.y + 2, best.z)) : false;
-      ai.svc = lowSupplies(e);
+      ai.svc = lowSupplies(e); ai.inc = B.shells.some(sh => sh.lock === e.eid && sh.A.guid === 'ir' && !sh.A.radar && sh.pos.distanceTo(pos) < 1400);
       if (ai.svc) ai.wp = baseWp(e); else if (!ai.wp || ai.wasSvc || Math.hypot(ai.wp.x - e.x, ai.wp.z - e.z) < 60) ai.wp = pickWp(e);
       ai.wasSvc = ai.svc;
     }
+    if (ai.inc && e.flares > 0) dropFlares(e);
     const tg = ai.tg; let gx, gz, thr = 0.9;
     if (e.st.plane) { if (tg) { gx = tg.x; gz = tg.z; const d = Math.hypot(tg.x - e.x, tg.z - e.z); if (d < 380 && ai.pass == null) ai.pass = B.t; if (ai.pass != null && B.t - ai.pass < 6) { gx = e.x - Math.sin(e.yaw) * 900; gz = e.z - Math.cos(e.yaw) * 900; } else ai.pass = null; thr = 0.8; } else { gx = ai.wp.x; gz = ai.wp.z; thr = 0.6; } }
     else if (tg) { gx = tg.x + Math.cos(B.t * 0.3 + ai.off) * 300; gz = tg.z + Math.sin(B.t * 0.3 + ai.off) * 300; const d = Math.hypot(tg.x - e.x, tg.z - e.z); thr = d > 1300 ? 1 : d < 650 ? -0.3 : 0.25; } else { gx = ai.wp.x; gz = ai.wp.z; }
@@ -742,7 +771,7 @@
       const cd = camDir(), co = camOrigin(cd), hit = rangeAlong(co, cd);
       B.aimR = hit.r; B.aimPt = hit.p; const tp = new V3(me.x, me.y + 2.3, me.z); const aimPt = hit.p; const dv = aimPt.clone().sub(tp), hd = Math.hypot(dv.x, dv.z), A = me.ammo[me.sel].A;
       c.aimYaw = Math.atan2(-dv.x, -dv.z); c.aimPitch = Math.atan2(dv.y, hd) + droop(A, me.stat.lrfDead ? Math.max(30, Math.round(dv.length() / 150) * 150 * (1 + Math.sin(B.t * 0.7) * 0.12)) : Math.max(30, dv.length()));
-      if (me.isHeli) SB.Radar.tick(B, me, dt);
+      if (me.isHeli || me.st.radar) SB.Radar.tick(B, me, dt);
       if (me.st.plane) { c.steer = clamp(clamp(wrap(B.camYaw - me.yaw) * 2.6, -1, 1) + ((k.KeyA ? 1 : 0) - (k.KeyD ? 1 : 0)) * 0.3, -1, 1); c.lift = clamp((B.camPitch - me.pitch) * 3.5, -1, 1); }   // avião: o nariz segue a mira do mouse
     } else { me.ctl.thr = 0; me.ctl.steer = 0; me.ctl.fire = false; }
     const stuckInput = B.keys;
@@ -756,6 +785,7 @@
     }
     for (let sub = 0; sub < 2; sub++) stepShells(dt / 2);
     for (let i = B.smokes.length - 1; i >= 0; i--) { const sm = B.smokes[i]; sm.t -= dt; if (sm.t <= 0) { B.smokes.splice(i, 1); continue; } if (Math.random() < dt * 12) SB.FX.smoke(sm.p.clone().add(new V3((Math.random() - 0.5) * sm.r, Math.random() * 4, (Math.random() - 0.5) * sm.r)), 1, false); }
+    for (let i = B.cm.length - 1; i >= 0; i--) { const f = B.cm[i]; f.t -= dt; f.vel.y -= 3 * dt; f.vel.multiplyScalar(Math.exp(-0.6 * dt)); f.pos.addScaledVector(f.vel, dt); SB.FX.puff(f.pos.clone(), new V3(0, 0, 0), 1.6, -0.6, 0.25, 0xffe0a0, 0.95, true); if (f.t <= 0) B.cm.splice(i, 1); }
     for (let i = B.flares.length - 1; i >= 0; i--) { const f = B.flares[i]; f.t -= dt; f.L.position.y -= 2 * dt; if (f.t <= 0) { B.scene.remove(f.L); B.flares.splice(i, 1); } }
     SB.FX.update(dt); B.shake = Math.max(0, B.shake - dt * 4);
     zoneStep(dt); zoneColors();
@@ -802,6 +832,7 @@
       case 'r': { const e = B.ents.get(m.e); if (e && e.owner !== B.myPeer) respawnEnt(e, m.x, m.z, m.yaw); break; }
       case 'end': showEnd(m.w); break;
       case 'ext': { const e = B.ents.get(m.e); if (e && e.owner !== B.myPeer) e.burning = false; break; }
+      case 'fl': m.f.forEach(f => addFlare(new V3(f[0], f[1], f[2]), new V3(f[3], f[4], f[5]))); break;
       case 'smk': m.p.forEach(p => { const v = new V3(...p); B.smokes.push({ p: v, r: 13, t: 24 }); SB.FX.smoke(v.clone(), 10, false); }); break;
       case 'aps': { const i = B.shells.findIndex(q => q.id === m.id); if (i >= 0) removeShell(i); SB.FX.explosion(new V3(...m.p), 0.5); break; }
       case 'z': if (B.cfg.mode === 'client') { m.c.forEach((c, i) => { if (B.zones[i]) { B.zones[i].cap = c; B.zones[i].owner = m.o[i] || null; } }); B.pts.A = m.p[0]; B.pts.B = m.p[1]; } break;
@@ -953,9 +984,9 @@
       else if (me.alive && (nonCrewDmg(me) || me.burning) && me.repairsLeft > 0) t = 'Danificado: G repara no lugar (' + me.repairsLeft + ' restantes)';
       sv.textContent = t; sv.style.display = t ? 'block' : 'none'; }
     $('feed').innerHTML = B.feed.filter(f => B.t - f.at < 12).map(f => '<div style="color:' + TEAMCOL[f.team] + '">' + f.t + '</div>').join('');
-    { const cv = $('rdr'); if (me.isHeli) SB.Radar.draw(B, me, cv); else cv.style.display = 'none'; }
+    { const cv = $('rdr'); if (me.st.radar) SB.Radar.draw(B, me, cv); else cv.style.display = 'none'; }
     $('spd').textContent = Math.round(Math.abs(me.v) * 3.6) + ' km/h' + (me.isHeli ? ' · alt ' + Math.round(me.y - B.map.H(me.x, me.z)) + ' m' : '') + '  |  ' + me.def.name;
-    $('rng').textContent = 'alcance: ' + (B.aimR >= 3200 ? '--' : Math.round(B.aimR) + ' m') + (me.burning ? '   🔥 INCÊNDIO (F)' : '') + (!me.alive ? '   ☠ reaparece em ' + Math.ceil(me.respawn) + ' s' : '');
+    $('rng').textContent = 'alcance: ' + (B.aimR >= 3200 ? '--' : Math.round(B.aimR) + ' m') + (me.burning ? '   🔥 INCÊNDIO (F)' : '') + (me.isHeli ? '   ✨ flares ' + me.flares + ' (B)' : '') + (!me.alive ? '   ☠ reaparece em ' + Math.ceil(me.respawn) + ' s' : '');
     const s = me.stat; $('crewl').innerHTML = 'Tripulação ' + s.crew + '/' + s.crewTotal + (s.gunDead ? ' · CANHÃO FORA' : '') + (s.rotorDead ? ' · ROTOR PERDIDO' : '') + (s.tailDead ? ' · ROTOR DE CAUDA PERDIDO' : '') + (s.speedF === 0 ? ' · IMOBILIZADO' : s.speedF < 0.7 ? ' · AVARIADO' : '') + (function () { const sy = []; if (s.hasStab) sy.push('Estabilizador ' + (s.stabDead ? '✖' : '✔')); if (s.hasAuto) sy.push('Autoloader ' + (s.autoDead ? '✖' : s.autoDmg ? '⚠' : '✔')); if (s.ringDead) sy.push('Anel da torre ✖'); if (s.lrfDead) sy.push('Telêmetro ✖'); if (s.hasFireSup) sy.push('Extintor auto ' + (me.fireLeft == null ? 2 : me.fireLeft)); if (s.hasAps) sy.push('APS ' + (me.apsLeft == null ? 3 : me.apsLeft)); if (s.hasSmokeL) sy.push('Fumaça(V) ' + (me.smokeLeft == null ? 2 : me.smokeLeft)); return sy.length ? '<br><small>' + sy.join(' · ') + '</small>' : ''; })();
     $('ammo').innerHTML = me.ammo.map((a, i) => '<div class="am' + (i === me.sel ? ' on' : '') + '"><b>' + (i + 1) + '</b> ' + ({ gun: '', rocket: '🚀 ', missile: '➶ ', aam: '✈ ', bomb: '💣 ' }[a.A.wc] || '') + (a.A.shortName || a.A.name) + '<br><span>' + a.A.type + ' · ' + a.n + '</span></div>').join('');
     const rt = me.isHeli ? 1 / ((me.ammo[me.sel].A.rof) || 4) : reloadT(me), rr = me.reload > 0 ? 1 - me.reload / Math.max(rt, 0.05) : 1; $('reload').firstChild.style.width = clamp(rr, 0, 1) * 100 + '%'; $('reload').style.opacity = rr < 1 ? 1 : 0.35;
@@ -1004,5 +1035,5 @@
     $('score').innerHTML = '<table><tr><th>Jogador</th><th>Tanque</th><th>Equipe</th><th>Abates</th><th>Mortes</th></tr>' + rows.map(e => '<tr style="color:' + TEAMCOL[e.team] + '"><td>' + e.name + '</td><td>' + e.def.name + '</td><td>' + (e.team === 'A' ? 'Azul' : 'Verm.') + '</td><td>' + e.kills + '</td><td>' + e.deaths + '</td></tr>').join('') + '</table>';
   }
 
-  SB.Battle = { step(dt) { update(dt); }, start, stop, get state() { return B; }, defaultLoadout };
+  SB.Battle = { step(dt) { update(dt); }, dropFlares, start, stop, get state() { return B; }, defaultLoadout };
 })(window.SB);

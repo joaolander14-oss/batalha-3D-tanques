@@ -18,7 +18,7 @@
     const sp = spec(e); if (!sp || !m || !m.k || o === e) return null;
     const dx = o.x - e.x, dz = o.z - e.z, dy = o.y - e.y, hd = Math.hypot(dx, dz), rng = Math.hypot(hd, dy);
     const az = wrap(Math.atan2(-dx, -dz) - e.yaw);
-    if (Math.abs(az) > m.az * D2R) return null;
+    if (!sp.sweep && Math.abs(az) > m.az * D2R) return null;
     const air = !!o.isHeli;
     if (m.id === 'gnd') { if (air || Math.abs(o.v) < 1.5 || rng > sp.R * m.k) return null; }
     else {
@@ -50,7 +50,7 @@
     if (r.wt <= 0) {                                                                  // alerta de radar (RWR)
       r.wt = 0.4; let lvl = 0, from = '';
       B.ents.forEach(o => {
-        if (!o.alive || o.team === me.team || !me.isHeli) return;
+        if (!o.alive || o.team === me.team || !(me.isHeli || me.st.radar)) return;
         if (o.st.radar && (o.bot || (o.rd && o.rd.mode))) {
           const s = seen(B, o, me, MODES[1]); if (!s) return;
           const locked = o.bot ? (o.ai && o.ai.tg === me && s.rng < o.st.radar.R * 0.7) : (o.rd.stt && o.rd.tgt === me.eid);
@@ -63,7 +63,7 @@
   }
   function cycleMode(B, me, toast) {
     if (!spec(me)) { toast('Esta aeronave não tem radar.', 1.5); return; }
-    const r = ensure(me); r.mode = (r.mode + 1) % MODES.length; r.stt = false; r.tgt = null; r.t = 0; toast('Radar: ' + MODES[r.mode].n, 1.8);
+    const r = ensure(me); r.mode = spec(me).sweep ? (r.mode ? 0 : 1) : (r.mode + 1) % MODES.length; r.stt = false; r.tgt = null; r.t = 0; toast('Radar: ' + MODES[r.mode].n, 1.8);
   }
   function cycleTarget(B, me, toast) {
     const r = ensure(me); if (!spec(me) || !r.contacts.length) { toast('Radar: sem contatos.', 1.2); return; }
@@ -92,16 +92,17 @@
   function draw(B, me, cv) {
     const g = cv.getContext('2d'), W = cv.width, Hh = cv.height, r = me.rd; g.clearRect(0, 0, W, Hh);
     const sp = spec(me); if (!sp || !r) { cv.style.display = 'none'; return; } cv.style.display = 'block';
-    const m = MODES[r.mode], cx = W / 2, cy = Hh - 14, R0 = Hh - 34, az = (m.az || 60) * D2R, Rm = sp.R * (m.k || 1);
+    const m = MODES[r.mode], sweep = !!sp.sweep, cx = W / 2, cy = sweep ? Hh / 2 : Hh - 14, R0 = sweep ? Math.min(W, Hh) / 2 - 16 : Hh - 34, az = sweep ? Math.PI : (m.az || 60) * D2R, Rm = sp.R * (m.k || 1);
     g.fillStyle = 'rgba(0,18,8,.72)'; g.fillRect(0, 0, W, Hh); g.strokeStyle = '#2f8f4f'; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R0, -Math.PI / 2 - az, -Math.PI / 2 + az); g.closePath(); g.stroke();
-    for (let k = 1; k < 4; k++) { g.beginPath(); g.arc(cx, cy, R0 * k / 4, -Math.PI / 2 - az, -Math.PI / 2 + az); g.stroke(); }
-    g.fillStyle = '#8fe8a8'; g.font = '10px monospace'; g.fillText(m.n + (m.k ? ' · ' + Math.round(Rm) + ' m' : ''), 4, 11);
+    if (sweep) { for (let k = 1; k <= 4; k++) { g.beginPath(); g.arc(cx, cy, R0 * k / 4, 0, Math.PI * 2); g.stroke(); } g.beginPath(); g.moveTo(cx, cy - R0); g.lineTo(cx, cy + R0); g.moveTo(cx - R0, cy); g.lineTo(cx + R0, cy); g.stroke();
+      if (m.k) { const a = (B.t * 2.2) % (Math.PI * 2); g.strokeStyle = '#6fff9a'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.sin(a) * R0, cy - Math.cos(a) * R0); g.stroke(); } }
+    else { g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R0, -Math.PI / 2 - az, -Math.PI / 2 + az); g.closePath(); g.stroke();
+      for (let k = 1; k < 4; k++) { g.beginPath(); g.arc(cx, cy, R0 * k / 4, -Math.PI / 2 - az, -Math.PI / 2 + az); g.stroke(); } }
+    g.fillStyle = '#8fe8a8'; g.font = '10px monospace'; g.fillText((sweep ? (m.k ? 'RADAR DE BUSCA 360°' : 'RADAR DESLIGADO') : m.n) + (m.k ? ' · ' + Math.round(Rm) + ' m' : ''), 4, 11);
     if (m.k) r.contacts.forEach(c => {
-      const rr = Math.min(1, c.rng / Rm) * R0, a = -Math.PI / 2 - c.az * -1; const x = cx - Math.sin(-c.az) * rr * -1, y = cy - Math.cos(c.az) * rr;
-      const px = cx + Math.sin(c.az) * -rr, py = y; const X = cx - Math.sin(c.az) * rr;
-      g.fillStyle = c.eid === r.tgt ? (r.stt ? '#ff3030' : '#ffd24a') : (c.air ? '#ff8a5a' : '#c0a060'); g.fillRect(X - 3, py - 3, 6, 6);
-      if (c.eid === r.tgt) { g.strokeStyle = r.stt ? '#ff3030' : '#ffd24a'; g.strokeRect(X - 6, py - 6, 12, 12); }
+      const rr = Math.min(1, c.rng / Rm) * R0, X = cx - Math.sin(c.az) * rr, Y = cy - Math.cos(c.az) * rr;
+      g.fillStyle = c.eid === r.tgt ? (r.stt ? '#ff3030' : '#ffd24a') : (c.air ? '#ff8a5a' : '#c0a060'); g.fillRect(X - 3, Y - 3, 6, 6);
+      if (c.eid === r.tgt) { g.strokeStyle = r.stt ? '#ff3030' : '#ffd24a'; g.strokeRect(X - 6, Y - 6, 12, 12); }
     });
     if (r.warn) { g.fillStyle = r.warn === 2 ? '#ff3030' : '#ffb030'; g.font = 'bold 11px monospace'; g.fillText(r.warn === 2 ? '⚠ RWR: TRAVADO' : '⚠ RWR: VARRIDO', 4, Hh - 3); }
   }

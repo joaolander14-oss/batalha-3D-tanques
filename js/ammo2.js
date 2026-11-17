@@ -178,7 +178,7 @@
     GATGM.forEach(h => { const a = make(h[1], h[0], h[2](), h[3], Object.assign({ fixedCal: true }, h[4]), { s: h[1], gATGM: true }); a.domain = 'ground'; out.push(a); });
     GGUN.forEach(h => { const a = make(h[1], h[0], h[2](), h[3], h[4], { s: h[1], gGun: true }); a.domain = 'ground'; out.push(a); });
     GSAM.forEach(h => { const a = make('AAM', h[0], h[1](), h[2], Object.assign({ fixedCal: true }, h[3]), { s: 'AAM', sam: true }); a.domain = 'ground'; out.push(a); });
-    SAM.forEach(h => { const r = h[1](); out.push(make('AAM', h[0], r, h[2], Object.assign({ fixedCal: true }, h[3]), { s: 'AAM', sam: true })); });
+    SAM.forEach(h => { const r = h[1](); out.push(make('AAM', h[0], r, h[2], Object.assign({ fixedCal: true, radar: /Buk|Kub|S-300|Tor|Tunguska|Hawk|Roland|Rapier|ADATS|HQ-17/.test(h[0]) }, h[3]), { s: 'AAM', sam: true })); });
     return out;
   };
 })(window.SB);
