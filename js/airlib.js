@@ -61,12 +61,12 @@
   function aam(it, z, b2) {
     const kg = z.kg, d = Math.round(29 * Math.cbrt(kg)), L = Math.round(Math.min(22 * d, 5500)), g = it.guid;
     const ex = { fixedCal: true, slots: Math.max(20, Math.round(kg / 2.2)), rof: 0.5, tntKg: +clamp(0.1 * kg, 1, 40).toFixed(1), guid: 'ir',
-      turn: { IR: 75, IIR: 85, SARH: 60, ARH: 70 }[g] || 70, cone: { IR: 22, IIR: 28, SARH: 26, ARH: 32 }[g] || 22, burn: Math.min(9, 3 + kg / 40) };
+      radar: g === 'SARH' || g === 'ARH', sarh: g === 'SARH', turn: { IR: 75, IIR: 85, SARH: 60, ARH: 70 }[g] || 70, cone: { IR: 22, IIR: 28, SARH: 26, ARH: 32 }[g] || 22, burn: Math.min(9, 3 + kg / 40) };
     return { sym: 'AAM', layers: b2.mkWar({ d, L, Ln: Math.round(2.2 * d), motor: Math.round(L * 0.5), wh: 'he', wall: 3 }), v0: (g === 'SARH' || g === 'ARH') ? 1100 : 900, ex };
   }
   function asm(it, z, b2) {
     const kg = z.kg, d = Math.round(50 * Math.cbrt(kg)), L = 9 * d, w = it.warhead, gd = GUID[it.guid] || 'sacls';
-    const ex = { fixedCal: true, slots: Math.max(10, Math.round(kg * 0.9)), rof: 0.4, guid: gd, turn: kg > 300 ? 22 : 36, cone: it.guid === 'ARM' ? 40 : it.guid === 'GPS/INS' ? 24 : 14, burn: Math.min(8, 2.5 + kg / 60) };
+    const ex = { fixedCal: true, slots: Math.max(10, Math.round(kg * 0.9)), rof: 0.4, guid: gd, turn: kg > 300 ? 22 : 36, arm: it.guid === 'ARM', cone: it.guid === 'ARM' ? 40 : it.guid === 'GPS/INS' ? 24 : 14, burn: Math.min(8, 2.5 + kg / 60) };
     const v0 = kg < 100 ? 450 : kg < 400 ? 380 : 300, mw = o => b2.mkWar(Object.assign({ d, L, Ln: Math.round(1.7 * d), motor: Math.round(L * 0.4), wall: Math.max(3, d * 0.03), alpha: 30 }, o));
     if (w === 'HEAT') return { sym: 'ATGM-TDM', layers: mw({ wh: 'heat' }), v0, ex: Object.assign(ex, { target: Math.round(clamp(d * 5.5, 450, 1100)) }) };
     if (w === 'PEN') return { sym: 'ATGM-PEN', layers: mw({ wh: 'he', wall: Math.max(8, d * 0.08) }), v0, ex: Object.assign(ex, { tntKg: +(0.25 * kg).toFixed(1) }) };

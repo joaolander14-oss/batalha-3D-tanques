@@ -2,7 +2,7 @@
 
 Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo War Thunder.
 
-- 200 veículos terrestres (100 tanques, 40 IFV/APC/leves, 19 autopropulsados e caças-tanques, 41 antiaéreos de canhão e de míssil) , 125 helicópteros e 10 aviões, com garagem para criar os seus
+- 200 veículos terrestres (100 tanques, 40 IFV/APC/leves, 19 autopropulsados e caças-tanques, 41 antiaéreos de canhão e de míssil) , 125 helicópteros e 30 aviões (caças, bombardeiros e furtivos), com garagem para criar os seus
 - As 61 munições do PDF "Munições de Tanque" (AP … APFSDS, HE, HEAT, ATGM guiados, foguetes, antipessoal, especiais, treino) + os 200 armamentos aéreos do PDF "armamentos_war_thunder" (60 bombas, 33 foguetes/casulos, 28 mísseis ar-ar, 40 ar-solo/anti-navio, 12 torpedos, 27 canhões/metralhadoras) para helicópteros e aviões
 - Mísseis guiados (segue a mira, trava no alvo, ataque por cima, sobrevoo/EFP, infravermelho) e foguetes que voam retos
 - Editor 3D de veículo (tanque ou helicóptero), de munição (desenho do projétil/míssil/foguete) e de materiais
@@ -16,3 +16,6 @@ Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo
 ## Como jogar
 Abra `index.html` por um servidor estático (`python -m http.server`) ou pelo GitHub Pages.
 W/S acelera, A/D vira (helicóptero: Espaço sobe, Shift desce), mouse mira, clique atira, botão direito mira telescópica, 1-8 munição (aviões: o avião segue a mira do mouse, W/S velocidade; bombas caem do pilone), X raio-X, F extintor, Tab placar.
+
+## Radar (aviões)
+Z muda o modo do radar (RWS, TWS, ACM, SOLO), T marca o próximo alvo, Y trava/destrava (STT). Filtro Doppler, radar de pulso sem look-down, alerta de radar (RWR), mísseis SARH/ARH exigem alvo no radar e ARM caçam emissores. Aviões furtivos (F-22, F-35, Su-57, J-20, F-117, B-2) não aparecem no radar; só mísseis IR e a vista os pegam.
