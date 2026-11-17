@@ -18,6 +18,18 @@
   };
   const GUID = { Livre: null, IR: 'ir', IIR: 'ir', SARH: 'ir', ARH: 'ir', Laser: 'lock', TV: 'lock', 'GPS/INS': 'lock', Fio: 'sacls', 'Rádio': 'sacls', ARM: 'lock', 'Acústico': 'lock', Esteira: 'lock' };
 
+  /* tipo de trava (lock) de cada guiagem do PDF: wire=fio, radio=rádio/SACLOS, laser=designador, tv=foto, ir=calor, gps=coordenada, radar, arm=antirradiação, auto=acústico/esteira */
+  const LKMAP = { IR: 'ir', IIR: 'ir', SARH: 'radar', ARH: 'radar', Laser: 'laser', TV: 'tv', 'GPS/INS': 'gps', Fio: 'wire', 'Rádio': 'radio', ARM: 'arm', 'Acústico': 'auto', Esteira: 'auto' };
+  SB.LK = { wire: 'Fio (segue a mira, alcance do fio)', radio: 'Rádio / SACLOS (segue a mira)', laser: 'Laser (câmera/designador no alvo)', tv: 'TV (tira foto do alvo, tecla L)', ir: 'Infravermelho (precisa de calor)', gps: 'GPS (coordenada do mapa, tecla L)', radar: 'Radar', arm: 'Antirradiação', auto: 'Automático' };
+  SB.LK_GROUND = ['wire', 'radio', 'laser', 'tv', 'ir', 'gps'];
+  /* ATGM de veículo terrestre: precisa escolher o tipo de lock */
+  SB.isGAtgm = a => !!a && (a.domain || 'ground') === 'ground' && !(a.info && a.info.sam) && !!((a.info && a.info.gATGM) || (SB.TYPE[a.type] || {}).cls === 'MS');
+  SB.defaultLk = a => {
+    if (!SB.isGAtgm(a)) return a && a.lk || null;
+    const n = a.name || '';
+    return /Kornet|Refleks|Svir|Ataka|Vikhr|LAHAT|Hellfire/i.test(n) ? 'laser' : /Spike|Javelin|Brimstone|TOP-ATK/i.test(n + a.type) ? 'ir' : 'wire';
+  };
+
   function bomb(it, z, b2, bb) {
     const kg = z.kg, d = Math.round(46 * Math.cbrt(kg)), w = it.warhead.replace(' retard.', ''), g = it.guid, gd = GUID[g];
     const L = Math.round(5.4 * d), wall = Math.max(5, Math.round(d * 0.05));
@@ -91,6 +103,8 @@
     const b2 = SB._b2, bb = SB._b, out = [];
     CAT.forEach(it => {
       const z = parseSize(it.size), r = MAKER[it.cat](it, z, b2, bb);
+      if (LKMAP[it.guid]) r.ex.lk = LKMAP[it.guid];                                   // tipo de trava do PDF (laser, TV, GPS, fio, IR…)
+      if (it.cat !== 'aar' && r.ex.guid === 'ir') r.ex.guid = 'lock';                  // ar-solo/bomba IR mira em qualquer alvo (só o AAM é restrito a aeronaves)
       const sg = it.cat === 'canhao' ? '' : ' · ' + it.guid, sz = String(it.size).replace(/\s+/g, ' ');
       const nm = '#' + pad(it.n) + ' ' + LABEL[it.cat] + (z.tubes ? ' (casulo)' : '') + (z.rot ? ' rotativo' : '') + ' ' + sz.replace(' rotat.', '') + ' ' + it.warhead + sg;
       const a = make(r.sym, nm, r.layers, r.v0, r.ex, { s: r.sym, wt: it.n, wtcat: it.cat, warhead: it.warhead, guidance: it.guid });

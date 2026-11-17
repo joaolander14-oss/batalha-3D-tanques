@@ -25,3 +25,14 @@ Veículos antiaéreos (SAM e canhão) têm radar de busca 360° (Z liga/desliga,
 
 ## Mapa grande e aeroportos
 Os 3 mapas agora têm 3600 m: a área principal (1400 m) fica no centro, onde é a batalha de tanques, e cada equipe tem um aeroporto (pista, hangares e torre) nas pontas, a ~1500 m da área principal. Os aviões decolam da pista do aeroporto e são reabastecidos/reparados voando baixo sobre ele; tanques e helicópteros usam a base da área principal. Helicópteros e aviões têm flares (B).
+
+## Lock dos ATGM de veículos terrestres (v41)
+Todo ATGM de veículo (inclusive os disparados pelo canhão) exige escolher um tipo de lock na munição do lobby; em batalha a tecla **L** troca o lock do míssil selecionado.
+- **Fio (SACLOS):** segue a sua mira; rompe a 4000 m ou se o atirador morrer.
+- **Laser:** segue o ponto do designador (sua mira); precisa de visada limpa (terreno/fumaça bloqueiam por mais de 1,2 s = míssil perdido) e telêmetro inteiro; alcance 5500 m.
+- **TV:** mire no alvo ~0,9 s para tirar a "foto"; dispara-e-esquece, o míssil compara com a própria visão e perde o alvo se a visada for bloqueada por mais de 3 s.
+- **IR:** trava na assinatura de calor (em movimento 1,0 · parado 0,7 · imobilizado 0,3 · fogo +0,7; alcance de detecção = calor × 3000 m); fumaça bloqueia, flares enganam helicópteros.
+- **GPS:** vai à coordenada mirada no disparo (±1–3,5 m) em mergulho por cima; não acompanha alvo que se mexe.
+
+## Bots: veículos e dificuldade
+No lobby: dificuldade por equipe (Recruta, Normal, Veterano, Elite: pontaria, antecipação, reação, recarga e alcance de visão) e lista "Veículos dos bots" para marcar/desmarcar cada tanque, avião e helicóptero (filtro por categoria).

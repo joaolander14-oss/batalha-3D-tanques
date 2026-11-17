@@ -34,24 +34,26 @@
     }
   };
 
+  L.DIFF = [['Recruta', 0.1], ['Normal', 0.5], ['Veterano', 0.8], ['Elite', 1]];
   const rosterIds = () => SB.ROSTER.map(r => r.id);
   /* monta a lista de entidades (jogadores + bots) – só o anfitrião/solo */
   L.buildSpecs = function (settings, hostPeer) {
     const specs = [];
     L.players.forEach(p => specs.push({ eid: 'P' + p.pid, owner: p.pid === 0 ? hostPeer : p.peer, team: p.team, name: p.name, tankId: p.tankId, tank: p.tank || null, loadout: p.loadout, bot: false }));
-    const ids = rosterIds(), nm = ['Alfa', 'Bravo', 'Cobra', 'Delta', 'Eco', 'Falcão', 'Gama', 'Hotel', 'Índigo', 'Juliet', 'Kilo', 'Lima'];
+    const off = new Set(settings.botOff || []), ids = rosterIds().filter(id => !off.has(id)), airIds = SB.HELIS.filter(h => !off.has(h.id)), nm = ['Alfa', 'Bravo', 'Cobra', 'Delta', 'Eco', 'Falcão', 'Gama', 'Hotel', 'Índigo', 'Juliet', 'Kilo', 'Lima'];
     let bi = 0;
     ['A', 'B'].forEach(team => {
-      const have = specs.filter(s => s.team === team).length, want = settings['bots' + team];
+      const want = ids.length ? settings['bots' + team] : 0, skill = (L.DIFF[settings['diff' + team]] || L.DIFF[1])[1];
       for (let i = 0; i < want; i++) {
         const id = ids[Math.floor(Math.random() * ids.length)], def = SB.buildTank(id);
-        specs.push({ eid: 'B' + (bi++), owner: hostPeer, team, name: '[BOT] ' + nm[(bi + i) % nm.length], tankId: id, tank: null, loadout: SB.defaultLoadout(def.stats), bot: true });
+        specs.push({ eid: 'B' + (bi++), owner: hostPeer, team, name: '[BOT] ' + nm[(bi + i) % nm.length], tankId: id, tank: null, loadout: SB.defaultLoadout(def.stats), bot: true, skill });
       }
     });
     ['A', 'B'].forEach(team => {
-      for (let i = 0; i < (settings['heli' + team] || 0); i++) {
-        const h = SB.HELIS[Math.floor(Math.random() * SB.HELIS.length)], def = SB.buildHeli(h.id);
-        specs.push({ eid: 'B' + (bi++), owner: hostPeer, team, name: '[BOT] ' + h.name.split(' ')[0] + ' ' + nm[(bi + i) % nm.length], tankId: h.id, tank: null, loadout: SB.defaultLoadout(def.stats), bot: true });
+      const skill = (L.DIFF[settings['diff' + team]] || L.DIFF[1])[1];
+      for (let i = 0; i < (airIds.length ? settings['heli' + team] || 0 : 0); i++) {
+        const h = airIds[Math.floor(Math.random() * airIds.length)], def = SB.buildHeli(h.id);
+        specs.push({ eid: 'B' + (bi++), owner: hostPeer, team, name: '[BOT] ' + h.name.split(' ')[0] + ' ' + nm[(bi + i) % nm.length], tankId: h.id, tank: null, loadout: SB.defaultLoadout(def.stats), bot: true, skill });
       }
     });
     return specs;

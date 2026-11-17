@@ -56,9 +56,9 @@
   function lobbyInfo() {
     const s = S(), L = s.lobby, t = SB.allTanks().find(x => x.id === L.tankId) || SB.allTanks()[9], def = t.get();
     const dom = def.stats.kind === 'heli' ? 'air' : 'ground';
-    let loadout = L.loadout.map(r => ({ ammo: s.ammos.find(a => a.id === r.aid), n: r.n })).filter(r => r.ammo && r.n > 0 && (r.ammo.domain || 'ground') === dom).slice(0, dom === 'air' ? 8 : 4);
+    let loadout = L.loadout.map(r => ({ ammo: s.ammos.find(a => a.id === r.aid), n: r.n, lk: r.lk })).filter(r => r.ammo && r.n > 0 && (r.ammo.domain || 'ground') === dom).slice(0, dom === 'air' ? 8 : 4);
     if (!loadout.length) loadout = SB.defaultLoadout(def.stats);
-    let tot = 0; loadout = loadout.map(r => { const sl = r.ammo.slots || 1, n = Math.max(0, Math.min(r.n, Math.floor((def.stats.rack - tot) / sl))); tot += n * sl; return { ammo: r.ammo, n }; }).filter(r => r.n > 0);
+    let tot = 0; loadout = loadout.map(r => { const sl = r.ammo.slots || 1, n = Math.max(0, Math.min(r.n, Math.floor((def.stats.rack - tot) / sl))); tot += n * sl; return { ammo: r.ammo, n, lk: SB.Locks.isAtgmAmmo(r.ammo) ? (r.lk || 'wire') : undefined }; }).filter(r => r.n > 0);
     return { name: L.name || 'Jogador', tankId: t.id, tank: t.custom ? def : null, tankName: t.name, loadout };
   }
 
@@ -76,10 +76,11 @@
     const setRow = (i, k, v) => setLobby({ loadout: L.loadout.map((r, j) => j === i ? { ...r, [k]: v } : r) });
     const maxFor = i => { const others = L.loadout.reduce((a, r, j) => a + (j === i ? 0 : r.n * slotsOf(r.aid)), 0); return Math.max(0, Math.floor((rack - others) / slotsOf(L.loadout[i].aid))); };
     const cnt = k => tanks.filter(t => (t.cat || t.kind) === k).length;
+    const off = new Set(L.botOff || []), allBots = tanks.filter(t => !t.custom), poolList = allBots.filter(t => !L.pkind || L.pkind === 'all' || (t.cat || t.kind) === L.pkind);
     const nations = ['Todas', ...Array.from(new Set(tanks.map(t => t.nation)))];
     const list = tanks.filter(t => (!L.nation || L.nation === 'Todas' || t.nation === L.nation) && (!L.kind || L.kind === 'all' || (t.cat || t.kind) === L.kind));
     const net = SB.Net.status, players = SB.Lobby.players, online = L.mode !== 'solo', hosting = SB.Net.mode === 'host', joined = SB.Net.mode === 'client';
-    const settings = () => ({ map: L.map, botsA: L.botsA, botsB: L.botsB, heliA: L.heliA || 0, heliB: L.heliB || 0, winKills: L.winKills, rules: L.rules || 'kills', capPoints: L.capPoints || 600, minutes: L.minutes });
+    const settings = () => ({ map: L.map, botsA: L.botsA, botsB: L.botsB, heliA: L.heliA || 0, heliB: L.heliB || 0, winKills: L.winKills, rules: L.rules || 'kills', capPoints: L.capPoints || 600, minutes: L.minutes, diffA: L.diffA == null ? 1 : L.diffA, diffB: L.diffB == null ? 1 : L.diffB, botOff: L.botOff || [] });
     const go = async () => {
       const info = lobbyInfo();
       if (L.mode === 'solo') return SB.Lobby.startSolo(info, settings());
@@ -100,18 +101,31 @@
       div({ className: 'form' },
         L.loadout.map((r, i) => div({ className: 'row', key: i },
           h(AmmoSel, { v: pool.some(a => a.id === r.aid) ? r.aid : '', on: v => setRow(i, 'aid', v), ammos: pool }),
+          (function () { const am = pool.find(a => a.id === r.aid); return am && SB.Locks.isAtgmAmmo(am) ? h('select', { value: r.lk || 'wire', title: SB.Locks.MODES[r.lk || 'wire'].d, onChange: e => setRow(i, 'lk', e.target.value) }, SB.Locks.ORDER.map(k => h('option', { key: k, value: k }, '🔒 ' + SB.Locks.MODES[k].n))) : null; })(),
           h(Num, { v: r.n, on: v => setRow(i, 'n', Math.max(0, Math.min(maxFor(i), Math.round(v)))), step: 1, w: 56 }),
           button({ className: 'danger', onClick: () => setLobby({ loadout: L.loadout.filter((_, j) => j !== i) }) }, '×'))),
         L.loadout.length < (dom === 'air' ? 8 : 4) ? button({ onClick: () => setLobby({ loadout: [...L.loadout, { aid: pool[0].id, n: Math.max(0, rack - used) }] }) }, '+ Tipo de munição') : null,
         used > rack ? div({ className: 'warn' }, '⚠ Passou do limite do paiol: o excesso será cortado.') : null,
+        L.loadout.some(r => { const am = pool.find(a => a.id === r.aid); return am && SB.Locks.isAtgmAmmo(am); }) ? div({ className: 'hint' }, 'Todo ATGM de veículo precisa de um tipo de lock (tecla L troca em batalha): ' + SB.Locks.ORDER.map(k => SB.Locks.MODES[k].n + ' — ' + SB.Locks.MODES[k].d).join('. ') + '.') : null,
         div({ className: 'hint' }, (dom === 'air' ? 'Munições de AERONAVE (canhão, foguetes, mísseis e ar-ar). ' : 'Munições de TANQUES E VEÍCULOS (separadas das de helicóptero). ') + 'As munições (inclusive as que você criar na aba 🔩) são ajustadas ao calibre do canhão; mísseis e foguetes têm calibre fixo.')),
       div({ className: 'sec' }, 'Partida'),
       div({ className: 'form' },
         Row('Mapa', h(Sel, { v: L.map, on: v => setLobby({ map: v }), opts: SB.MAP_LIST.map(m => [m.id, m.name]) })),
         Row('Bots equipe azul', h(Num, { v: L.botsA, on: v => setLobby({ botsA: clamp(Math.round(v), 0, 10) }), step: 1 })),
         Row('Bots equipe vermelha', h(Num, { v: L.botsB, on: v => setLobby({ botsB: clamp(Math.round(v), 0, 10) }), step: 1 })),
-        Row('Helicópteros bot (azul)', h(Num, { v: L.heliA || 0, on: v => setLobby({ heliA: clamp(Math.round(v), 0, 5) }), step: 1 })),
-        Row('Helicópteros bot (verm.)', h(Num, { v: L.heliB || 0, on: v => setLobby({ heliB: clamp(Math.round(v), 0, 5) }), step: 1 })),
+        Row('Aeronaves bot (azul)', h(Num, { v: L.heliA || 0, on: v => setLobby({ heliA: clamp(Math.round(v), 0, 5) }), step: 1 })),
+        Row('Aeronaves bot (verm.)', h(Num, { v: L.heliB || 0, on: v => setLobby({ heliB: clamp(Math.round(v), 0, 5) }), step: 1 })),
+        Row('Dificuldade bots azuis', h(Sel, { v: L.diffA == null ? 1 : L.diffA, on: v => setLobby({ diffA: +v }), opts: SB.Lobby.DIFF.map((d, i) => [i, d[0]]) })),
+        Row('Dificuldade bots verm.', h(Sel, { v: L.diffB == null ? 1 : L.diffB, on: v => setLobby({ diffB: +v }), opts: SB.Lobby.DIFF.map((d, i) => [i, d[0]]) })),
+        Row('Veículos dos bots', button({ onClick: () => setLobby({ poolOpen: !L.poolOpen }) }, (L.poolOpen ? '▲ ' : '▼ ') + (allBots.length - off.size) + ' de ' + allBots.length + ' permitidos')),
+        L.poolOpen ? div({ className: 'form' },
+          div({ className: 'btns' }, h(Sel, { v: L.pkind || 'all', on: v => setLobby({ pkind: v }), opts: [['all', 'Todos'], ['tank', 'Tanques'], ['light', 'IFV, APC e leves'], ['spg', 'Autopropulsados'], ['aa', 'Antiaéreos'], ['plane', 'Aviões'], ['heli', 'Helicópteros']] }),
+            button({ onClick: () => setLobby({ botOff: (L.botOff || []).filter(id => !poolList.some(t => t.id === id)) }) }, 'Marcar listados'),
+            button({ onClick: () => setLobby({ botOff: Array.from(new Set([...(L.botOff || []), ...poolList.map(t => t.id)])) }) }, 'Desmarcar listados')),
+          div({ className: 'list tall' }, poolList.map(t => div({ key: t.id, className: 'item', onClick: () => setLobby({ botOff: off.has(t.id) ? (L.botOff || []).filter(x => x !== t.id) : [...(L.botOff || []), t.id] }) },
+            span({ className: 'nm' }, (off.has(t.id) ? '☐ ' : '☑ ') + (t.kind === 'heli' ? (t.cat === 'plane' ? '✈ ' : '🚁 ') : '') + t.name), span({ className: 'tag' }, t.nation + ' · ' + t.cal + ' mm')))),
+          allBots.filter(t => t.kind !== 'heli' && !off.has(t.id)).length === 0 ? div({ className: 'warn' }, 'Nenhum veículo terrestre permitido: não haverá bots terrestres.') : null,
+          allBots.filter(t => t.kind === 'heli' && !off.has(t.id)).length === 0 ? div({ className: 'warn' }, 'Nenhuma aeronave permitida: não haverá aeronaves bot.') : null) : null,
         Row('Modo de jogo', h(Sel, { v: L.rules || 'kills', on: v => setLobby({ rules: v }), opts: [['kills', 'Abates (equipes)'], ['capture', 'Captura de zona (3 zonas)']] })),
         (L.rules || 'kills') === 'capture' ? Row('Pontos para vencer', h(Num, { v: L.capPoints || 600, on: v => setLobby({ capPoints: clamp(Math.round(v), 100, 3000) }), step: 100 })) : Row('Abates para vencer', h(Num, { v: L.winKills, on: v => setLobby({ winKills: clamp(Math.round(v), 3, 100) }), step: 5 })),
         (L.rules || 'kills') === 'capture' ? div({ className: 'hint' }, 'Fique nas zonas com mais veículos que o inimigo para capturá-las (1 ponto/s por zona). Zonas suas e a sua base reabastecem munição e consertam o veículo.') : null,
