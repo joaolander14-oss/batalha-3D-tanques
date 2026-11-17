@@ -56,7 +56,7 @@
   function lobbyInfo() {
     const s = S(), L = s.lobby, t = SB.allTanks().find(x => x.id === L.tankId) || SB.allTanks()[9], def = t.get();
     const dom = def.stats.kind === 'heli' ? 'air' : 'ground';
-    let loadout = L.loadout.map(r => ({ ammo: s.ammos.find(a => a.id === r.aid), n: r.n })).filter(r => r.ammo && r.n > 0 && (r.ammo.domain || 'ground') === dom).slice(0, 4);
+    let loadout = L.loadout.map(r => ({ ammo: s.ammos.find(a => a.id === r.aid), n: r.n })).filter(r => r.ammo && r.n > 0 && (r.ammo.domain || 'ground') === dom).slice(0, dom === 'air' ? 8 : 4);
     if (!loadout.length) loadout = SB.defaultLoadout(def.stats);
     let tot = 0; loadout = loadout.map(r => { const sl = r.ammo.slots || 1, n = Math.max(0, Math.min(r.n, Math.floor((def.stats.rack - tot) / sl))); tot += n * sl; return { ammo: r.ammo, n }; }).filter(r => r.n > 0);
     return { name: L.name || 'Jogador', tankId: t.id, tank: t.custom ? def : null, tankName: t.name, loadout };
@@ -92,9 +92,9 @@
         Row('Seu nome', h('input', { value: L.name, onChange: e => setLobby({ name: e.target.value }) })),
         Row('Modo', h(Sel, { v: L.mode, on: v => { if (v === 'solo') SB.Lobby.leave(); setLobby({ mode: v }); }, opts: [['solo', 'Solo contra bots'], ['host', 'Online: criar sala'], ['join', 'Online: entrar em sala']] })),
         L.mode === 'join' ? Row('Código da sala', h('input', { value: L.joinCode || '', placeholder: 'ex.: K7P2Q', onChange: e => setLobby({ joinCode: e.target.value.toUpperCase() }) })) : null),
-      div({ className: 'sec' }, 'Veículo (' + list.length + ')  ', h(Sel, { v: L.kind || 'all', on: v => setLobby({ kind: v }), opts: [['all', 'Todos (' + tanks.length + ')'], ['tank', 'Tanques (' + cnt('tank') + ')'], ['light', 'IFV, APC e leves (' + cnt('light') + ')'], ['spg', 'Autopropulsados e caças-tanques (' + cnt('spg') + ')'], ['aa', 'Antiaéreos de canhão e míssil (' + cnt('aa') + ')'], ['heli', 'Helicópteros (' + cnt('heli') + ')']] }), ' ', h(Sel, { v: L.nation || 'Todas', on: v => setLobby({ nation: v }), opts: nations.map(n => [n, n]) })),
+      div({ className: 'sec' }, 'Veículo (' + list.length + ')  ', h(Sel, { v: L.kind || 'all', on: v => setLobby({ kind: v }), opts: [['all', 'Todos (' + tanks.length + ')'], ['tank', 'Tanques (' + cnt('tank') + ')'], ['light', 'IFV, APC e leves (' + cnt('light') + ')'], ['spg', 'Autopropulsados e caças-tanques (' + cnt('spg') + ')'], ['aa', 'Antiaéreos de canhão e míssil (' + cnt('aa') + ')'], ['plane', 'Aviões (' + cnt('plane') + ')'], ['heli', 'Helicópteros (' + cnt('heli') + ')']] }), ' ', h(Sel, { v: L.nation || 'Todas', on: v => setLobby({ nation: v }), opts: nations.map(n => [n, n]) })),
       div({ className: 'list tall' }, list.map(t => div({ key: t.id, className: 'item' + (t.id === cur.id ? ' on' : ''), onClick: () => pickTank(t.id) },
-        span({ className: 'nm' }, (t.custom ? '★ ' : '') + (t.kind === 'heli' ? '🚁 ' : '') + t.name), span({ className: 'tag' }, t.nation + ' · ' + t.cal + ' mm · ' + t.mass + ' t · ' + t.vmax + ' km/h')))),
+        span({ className: 'nm' }, (t.custom ? '★ ' : '') + (t.kind === 'heli' ? (t.cat === 'plane' ? '✈ ' : '🚁 ') : '') + t.name), span({ className: 'tag' }, t.nation + ' · ' + t.cal + ' mm · ' + t.mass + ' t · ' + t.vmax + ' km/h')))),
       div({ className: 'hint' }, 'Selecionado: ', h('b', null, cur.name), ' — ' + (def.stats.kind === 'heli' ? 'helicóptero: canhão ' + def.stats.cal + ' mm, capacidade ' + rack + ' unidades (tiro=1, foguete=8, míssil=40). Espaço sobe, Shift desce.' : 'canhão ' + def.stats.cal + ' mm, ' + (def.stats.rof ? 'cadência ' + def.stats.rof + ' tiros/s' + (def.stats.elev[1] > 60 ? ' (antiaéreo: eleva até ' + def.stats.elev[1] + '°)' : '') : 'recarga ' + def.stats.reload + ' s') + ', paiol ' + rack + ' unidades') + '. Crie veículos na aba 🛠 Veículo.'),
       div({ className: 'sec' }, 'Munições (' + used + '/' + rack + ' unid.)'),
       div({ className: 'form' },
@@ -102,7 +102,7 @@
           h(AmmoSel, { v: pool.some(a => a.id === r.aid) ? r.aid : '', on: v => setRow(i, 'aid', v), ammos: pool }),
           h(Num, { v: r.n, on: v => setRow(i, 'n', Math.max(0, Math.min(maxFor(i), Math.round(v)))), step: 1, w: 56 }),
           button({ className: 'danger', onClick: () => setLobby({ loadout: L.loadout.filter((_, j) => j !== i) }) }, '×'))),
-        L.loadout.length < 4 ? button({ onClick: () => setLobby({ loadout: [...L.loadout, { aid: pool[0].id, n: Math.max(0, rack - used) }] }) }, '+ Tipo de munição') : null,
+        L.loadout.length < (dom === 'air' ? 8 : 4) ? button({ onClick: () => setLobby({ loadout: [...L.loadout, { aid: pool[0].id, n: Math.max(0, rack - used) }] }) }, '+ Tipo de munição') : null,
         used > rack ? div({ className: 'warn' }, '⚠ Passou do limite do paiol: o excesso será cortado.') : null,
         div({ className: 'hint' }, (dom === 'air' ? 'Munições de AERONAVE (canhão, foguetes, mísseis e ar-ar). ' : 'Munições de TANQUES E VEÍCULOS (separadas das de helicóptero). ') + 'As munições (inclusive as que você criar na aba 🔩) são ajustadas ao calibre do canhão; mísseis e foguetes têm calibre fixo.')),
       div({ className: 'sec' }, 'Partida'),

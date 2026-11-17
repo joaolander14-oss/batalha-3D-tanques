@@ -158,7 +158,7 @@
         Row('Tipo', h(Sel,{ v: a.type, on: v => editAmmo(n => { n.type = v; }), opts: Object.entries(SB.TYPE).map(([k, v]) => [k, v.n]) })),
         Row('Vel. de saída (m/s)', h(Num,{ v: a.v0, on: v => editAmmo(n => { n.v0 = Math.max(50, v); }), step: 10 })),
         ['AP', 'APC', 'APCBC', 'APBC', 'APHE'].includes(a.type) ? [Row('Espoleta: sens. (mm)', h(Num,{ v: a.sens, on: v => editAmmo(n => { n.sens = v; }), step: 1 })), Row('Espoleta: retardo (ms)', h(Num,{ v: a.delay, on: v => editAmmo(n => { n.delay = v; }), step: 0.1 }))] : null,
-        Row('Uso', h(Sel, { v: a.domain || 'ground', on: v => editAmmo(n => { n.domain = v; }), opts: [['ground', 'Tanques e veículos terrestres'], ['air', 'Helicópteros']] })),
+        Row('Uso', h(Sel, { v: a.domain || 'ground', on: v => editAmmo(n => { n.domain = v; }), opts: [['ground', 'Tanques e veículos terrestres'], ['air', 'Aeronaves (helicópteros e aviões)']] })),
         Row('Classe', span({}, (SB.CLS_NAMES[(SB.TYPE[a.type] || {}).cls] || '') + (A.guid ? ' · guiada (' + A.guid + ')' : '') + (A.rocket ? ' · foguete não guiado' : ''))),
         Row('Explosivo (kg TNT, manual)', h(Num, { v: a.tntKg != null ? a.tntKg : rd(A.tnt, 3), on: v => editAmmo(n => { n.tntKg = Math.max(0, v); }), step: 0.1 })),
         Row('Calibração de penetração (×)', h(Num, { v: rd(a.pk || 1, 3), on: v => editAmmo(n => { n.pk = Math.max(0.05, v); }), step: 0.05 })),

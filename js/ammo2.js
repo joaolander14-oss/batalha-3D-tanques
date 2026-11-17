@@ -1,4 +1,4 @@
-/* Biblioteca completa de munições: as 61 siglas do PDF + munições de helicóptero.
+/* Biblioteca completa de munições: as 61 siglas do PDF (terrestres) + os 200 armamentos aéreos do PDF do War Thunder (airlib.js).
    Cada uma é um perfil desenhável (camadas x,r em mm) calibrado para a penetração "média" do PDF. */
 (function (SB) {
   'use strict';
@@ -99,41 +99,6 @@
     'DUMMY': () => [mkShell({ d: 105, L: 400, Ln: 90, bt: 14, bodyMat: 'al' }), 300, {}],
   };
 
-  /* ---------- helicópteros: canhão (calibre de referência, será ajustado ao canhão), foguetes, mísseis, AAM ---------- */
-  const HELI = [
-    ['30×113 mm M789 HEDP', 'HEAT-MP', () => mkHeat({ d: 30, L: 113, Ln: 35, wall: 1.2, alpha: 30, base: 18 }), 805, { target: 50, tntKg: 0.02, slots: 1, rof: 10 }],
-    ['30×165 mm 2A42 HE-FRAG-T', 'HE-FRAG', () => wrap(cyl(30, 165, 2.5), 'tnt'), 970, { tntKg: 0.045, slots: 1, rof: 10 }],
-    ['30×165 mm 2A42 AP-T', 'AP-T', () => mkShell({ d: 30, L: 140, Ln: 36, bt: 5, cavity: { x0: 3, x1: 20, r: 4 }, fill: 'trc' }), 970, { target: 45, tntKg: 0.002, slots: 1, rof: 10 }],
-    ['20×102 mm M56A3 HEI', 'HEI', () => wrap(cyl(20, 85, 2), 'tnt'), 1030, { tntKg: 0.01, slots: 1, rof: 12 }],
-    ['20 mm M53 API', 'AP-I', () => mkShell({ d: 20, L: 85, Ln: 22, bt: 4, cavity: { x0: 3, x1: 16, r: 3 }, fill: 'inc' }), 1030, { target: 18, tntKg: 0.002, slots: 1, rof: 12 }],
-    ['23×115 mm BZT/HEI', 'HEI', () => wrap(cyl(23, 100, 2.2), 'tnt'), 980, { tntKg: 0.012, slots: 1, rof: 10 }],
-    ['12,7×99 mm AP-I (M8)', 'AP-I', () => mkShell({ d: 12.7, L: 58, Ln: 18, bt: 3, cavity: { x0: 2, x1: 10, r: 2 }, fill: 'inc' }), 890, { target: 20, tntKg: 0.0008, slots: 1, rof: 14 }],
-    ['Hydra 70 M151 HE', 'RKT-FRAG', () => mkWar({ d: 70, L: 1400, Ln: 150, motor: 800, wh: 'he', wall: 2 }), 700, { tntKg: 0.9, fixedCal: true, slots: 8, rof: 4 }],
-    ['Hydra 70 M247 HEDP', 'RKT-HEAT', () => mkWar({ d: 70, L: 1400, Ln: 150, motor: 800, wh: 'heat', alpha: 30, wall: 1.8 }), 700, { target: 120, fixedCal: true, slots: 8, rof: 4 }],
-    ['Hydra 70 M255 flechetes', 'APERS-T', () => wrap(cyl(70, 1200, 2), 'apst'), 650, { tntKg: 0.1, pellets: 1180, fixedCal: true, slots: 8, rof: 4, burstOver: true }],
-    ['Hydra 70 M257 iluminativa', 'ILLUM', () => wrap(cyl(70, 1200, 2), 'smk'), 600, { tntKg: 0.02, fixedCal: true, slots: 8, rof: 4 }],
-    ['Hydra 70 M156 fumígena WP', 'RKT-SMK', () => wrap(cyl(70, 1200, 2), 'wp'), 600, { tntKg: 0.05, fixedCal: true, slots: 8, rof: 4 }],
-    ['S-8KOM HEAT (80 mm)', 'RKT-HEAT', () => mkWar({ d: 80, L: 1500, Ln: 160, motor: 850, wh: 'heat', alpha: 30, wall: 1.8 }), 600, { target: 400, fixedCal: true, slots: 8, rof: 5 }],
-    ['S-8 termobárico (80 mm)', 'RKT-TB', () => mkWar({ d: 80, L: 1500, Ln: 160, motor: 850, wh: 'he', wall: 2 }), 600, { tntKg: 4, fixedCal: true, slots: 8, rof: 4 }],
-    ['S-13OF anti-bunker (122 mm)', 'RKT-DEM', () => mkWar({ d: 122, L: 2900, Ln: 300, motor: 1400, wh: 'he', wall: 5 }), 500, { tntKg: 8, fixedCal: true, slots: 14, rof: 2 }],
-    ['S-24B (240 mm)', 'RKT-HE', () => mkWar({ d: 240, L: 2330, Ln: 400, motor: 800, wh: 'he', wall: 8 }), 500, { tntKg: 23, fixedCal: true, slots: 30, rof: 1 }],
-    ['AGM-114K Hellfire II', 'ATGM-TDM', () => mkWar({ d: 178, L: 1630, Ln: 300, motor: 700, wh: 'heat', alpha: 30 }), 450, { target: 1000, fixedCal: true, slots: 40, rof: 0.4, guid: 'sacls' }],
-    ['AGM-114L Longbow Hellfire', 'ATGM-TDM', () => mkWar({ d: 178, L: 1800, Ln: 320, motor: 700, wh: 'heat', alpha: 30 }), 450, { target: 1000, fixedCal: true, slots: 40, rof: 0.4, guid: 'lock' }],
-    ['AGM-114N Hellfire termobárico', 'ATGM-TB', () => mkWar({ d: 178, L: 1630, Ln: 300, motor: 700, wh: 'he' }), 450, { tntKg: 6, fixedCal: true, slots: 40, rof: 0.4, guid: 'sacls' }],
-    ['AGM-179 JAGM', 'ATGM-MP', () => mkWar({ d: 178, L: 1760, Ln: 320, motor: 700, wh: 'heat', alpha: 32 }), 450, { target: 1000, tntKg: 3, fixedCal: true, slots: 40, rof: 0.4, guid: 'lock' }],
-    ['9M120 Ataka-V', 'ATGM-TDM', () => mkWar({ d: 130, L: 1830, Ln: 300, motor: 800, wh: 'heat', alpha: 30 }), 400, { target: 900, fixedCal: true, slots: 40, rof: 0.4, guid: 'sacls' }],
-    ['9M114 Shturm-V', 'ATGM', () => mkWar({ d: 130, L: 1700, Ln: 280, motor: 800, wh: 'heat', alpha: 30 }), 400, { target: 650, fixedCal: true, slots: 36, rof: 0.4, guid: 'sacls' }],
-    ['9M127 Vikhr', 'ATGM-TDM', () => mkWar({ d: 130, L: 2750, Ln: 330, motor: 1500, wh: 'heat', alpha: 30 }), 600, { target: 900, fixedCal: true, slots: 44, rof: 0.4, guid: 'sacls' }],
-    ['Spike-ER (mergulho)', 'ATGM-TOP', () => mkWar({ d: 170, L: 1670, Ln: 300, motor: 700, wh: 'heat', alpha: 30 }), 260, { target: 800, fixedCal: true, slots: 40, rof: 0.35, guid: 'top' }],
-    ['Brimstone', 'ATGM-TDM', () => mkWar({ d: 178, L: 1800, Ln: 320, motor: 700, wh: 'heat', alpha: 30 }), 450, { target: 1000, fixedCal: true, slots: 40, rof: 0.4, guid: 'lock' }],
-    ['HJ-10', 'ATGM-TOP', () => mkWar({ d: 180, L: 1800, Ln: 320, motor: 700, wh: 'heat', alpha: 30 }), 380, { target: 800, fixedCal: true, slots: 40, rof: 0.35, guid: 'lock' }],
-    ['UMTAS', 'ATGM-TDM', () => mkWar({ d: 160, L: 1800, Ln: 300, motor: 800, wh: 'heat', alpha: 30 }), 380, { target: 800, fixedCal: true, slots: 40, rof: 0.4, guid: 'sacls' }],
-    ['Mokopa (longo alcance)', 'ATGM-TDM', () => mkWar({ d: 178, L: 2000, Ln: 340, motor: 900, wh: 'heat', alpha: 30 }), 450, { target: 1000, fixedCal: true, slots: 44, rof: 0.35, guid: 'lock' }],
-    ['FIM-92 Stinger (ar-ar)', 'AAM', () => mkWar({ d: 70, L: 1500, Ln: 200, motor: 800, wh: 'he', wall: 2 }), 700, { tntKg: 0.4, fixedCal: true, slots: 40, rof: 0.5 }],
-    ['9K38 Igla-V (ar-ar)', 'AAM', () => mkWar({ d: 72, L: 1700, Ln: 220, motor: 900, wh: 'he', wall: 2 }), 600, { tntKg: 0.5, fixedCal: true, slots: 40, rof: 0.5 }],
-    ['Mistral (ar-ar)', 'AAM', () => mkWar({ d: 90, L: 1800, Ln: 240, motor: 900, wh: 'he', wall: 2 }), 800, { tntKg: 1.0, fixedCal: true, slots: 44, rof: 0.5 }],
-  ];
-
   /* ---------- mísseis antiaéreos (SAM): só atingem aeronaves; guiagem infravermelho/radar ---------- */
   const SAM = [
     ['MIM-72 Chaparral (SAM)', () => mkWar({ d: 127, L: 2900, Ln: 300, motor: 1300, wh: 'he', wall: 3 }), 800, { tntKg: 4.5, slots: 60, rof: 0.4, turn: 85, burn: 3 }],
@@ -201,6 +166,7 @@
     }
     return a;
   }
+  SB._b2 = { mkWar, cyl, wrap, mkKEMissile };
   SB.AMMO_PRESETS = function () {
     const out = [];
     (SB.CATALOG || []).forEach(c => {
@@ -208,7 +174,7 @@
       const r = f(); const nm = c.s + ' · ' + c.n;
       out.push(make(c.s, nm, r[0], r[1], r[2], { s: c.s, y: c.y, m: c.m, fx: c.fx }));
     });
-    HELI.forEach(h => { const r = h[2](); const a = make(h[1], h[0], r, h[3], h[4], { s: h[1], heli: true }); a.domain = 'air'; out.push(a); });
+    if (SB.wtAmmo) SB.wtAmmo(make).forEach(a => out.push(a));            // armamentos aéreos = os 200 itens do PDF do War Thunder
     GATGM.forEach(h => { const a = make(h[1], h[0], h[2](), h[3], Object.assign({ fixedCal: true }, h[4]), { s: h[1], gATGM: true }); a.domain = 'ground'; out.push(a); });
     GGUN.forEach(h => { const a = make(h[1], h[0], h[2](), h[3], h[4], { s: h[1], gGun: true }); a.domain = 'ground'; out.push(a); });
     GSAM.forEach(h => { const a = make('AAM', h[0], h[1](), h[2], Object.assign({ fixedCal: true }, h[3]), { s: 'AAM', sam: true }); a.domain = 'ground'; out.push(a); });

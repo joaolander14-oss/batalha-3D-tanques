@@ -288,7 +288,7 @@
   try { SB.garage = JSON.parse(localStorage.getItem('sb.garage') || '[]'); } catch (e) {}
   SB.saveGarage = () => { try { localStorage.setItem('sb.garage', JSON.stringify(SB.garage)); } catch (e) {} };
   SB.allTanks = () => SB.ROSTER.map(r => ({ id: r.id, name: r.name, nation: r.nation, custom: false, kind: 'tank', cat: (r.cfg && r.cfg.cat) || 'tank', mass: r.mass, cal: r.cal, vmax: r.vmax, get: () => SB.buildTank(r.id) }))
-    .concat((SB.HELIS || []).map(h => ({ id: h.id, name: h.name, nation: h.nation, custom: false, kind: 'heli', cat: 'heli', mass: h.cfg.mass, cal: h.cfg.cal, vmax: h.cfg.vmax, get: () => SB.buildHeli(h.id) })))
+    .concat((SB.HELIS || []).map(h => ({ id: h.id, name: h.name, nation: h.nation, custom: false, kind: 'heli', cat: h.cfg.plane ? 'plane' : 'heli', mass: h.cfg.mass, cal: h.cfg.cal, vmax: h.cfg.vmax, get: () => SB.buildHeli(h.id) })))
     .concat(SB.garage.map(g => ({ id: g.id, name: g.name, nation: 'Customizado', custom: true, kind: g.stats && g.stats.kind === 'heli' ? 'heli' : 'tank', mass: g.stats ? g.stats.mass : 40, cal: g.stats ? g.stats.cal : 90, vmax: g.stats ? g.stats.vmax : 50, get: () => SB.fillStats(JSON.parse(JSON.stringify(g))) })));
   SB.getTankById = id => { const t = SB.allTanks().find(x => x.id === id); return t ? t.get() : SB.buildTank('t3485'); };
 

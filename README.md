@@ -2,8 +2,8 @@
 
 Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo War Thunder.
 
-- 200 veículos terrestres (100 tanques, 40 IFV/APC/leves, 19 autopropulsados e caças-tanques, 41 antiaéreos de canhão e de míssil) e 50 helicópteros, com garagem para criar os seus
-- As 61 munições do PDF "Munições de Tanque" (AP … APFSDS, HE, HEAT, ATGM guiados, foguetes, antipessoal, especiais, treino) + munições de helicóptero (canhão, foguetes, Hellfire/Ataka/Spike…, ar-ar)
+- 200 veículos terrestres (100 tanques, 40 IFV/APC/leves, 19 autopropulsados e caças-tanques, 41 antiaéreos de canhão e de míssil) , 125 helicópteros e 10 aviões, com garagem para criar os seus
+- As 61 munições do PDF "Munições de Tanque" (AP … APFSDS, HE, HEAT, ATGM guiados, foguetes, antipessoal, especiais, treino) + os 200 armamentos aéreos do PDF "armamentos_war_thunder" (60 bombas, 33 foguetes/casulos, 28 mísseis ar-ar, 40 ar-solo/anti-navio, 12 torpedos, 27 canhões/metralhadoras) para helicópteros e aviões
 - Mísseis guiados (segue a mira, trava no alvo, ataque por cima, sobrevoo/EFP, infravermelho) e foguetes que voam retos
 - Editor 3D de veículo (tanque ou helicóptero), de munição (desenho do projétil/míssil/foguete) e de materiais
 - Penetração, ricochete, estilhaços, incêndio e detonação de munição simulados de verdade
@@ -15,4 +15,4 @@ Jogo de batalha de tanques no navegador (Three.js + React, sem build), no estilo
 
 ## Como jogar
 Abra `index.html` por um servidor estático (`python -m http.server`) ou pelo GitHub Pages.
-W/S acelera, A/D vira (helicóptero: Espaço sobe, Shift desce), mouse mira, clique atira, botão direito mira telescópica, 1-4 munição, X raio-X, F extintor, Tab placar.
+W/S acelera, A/D vira (helicóptero: Espaço sobe, Shift desce), mouse mira, clique atira, botão direito mira telescópica, 1-8 munição (aviões: W/S velocidade, Espaço sobe, Shift desce; bombas caem do pilone), X raio-X, F extintor, Tab placar.

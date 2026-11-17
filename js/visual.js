@@ -48,6 +48,13 @@
   put('AAM', MS({ bc: 0xffffff, nc: 0xcccccc, flame: 0xffe090, glow: 5, trail: SM(0xffffff, 3, 1.2, 4, 2.8, 0.65), impact: 'airburst' }));
   /* ---- foguetes não guiados ---- */
   const RK = (o) => Object.assign({ body: 'rocket', muzzle: 'rocket', impact: 'explosion', glow: 5, gcol: 0xffa040, trail: SM(0x8a8a8a, 4, 1.1, 3.5, 2.0, 0.5), bc: 0x6a6e48, nc: 0x333333, flame: 0xff9a30 }, o);
+  put('ATGM-PEN', MS({ bc: 0x6a6e5a, nc: 0xcc3322, impact: 'shock' }));
+  put('RKT-AP', RK({ bc: 0x55584a, trail: SM(0x909090, 4, 1, 3, 1.8, 0.45), impact: 'metal' }));
+  put('RKT-HESH', RK({ bc: 0x6a6a4a, impact: 'shock', trail: SM(0x808080, 4, 1.4, 4, 2.2, 0.5) }));
+  const BM = o => Object.assign({ body: 'bomb', bc: 0x4a5040, nc: 0xb0a060, glow: 0, len: 3, trail: null, impact: 'explosion' }, o);
+  put('BOMB-HE', BM({ impact: 'shock' })); put('BOMB-FRAG', BM({ impact: 'airburst', nc: 0xaaaaaa })); put('BOMB-INC', BM({ bc: 0x7a3a2a, impact: 'inc' }));
+  put('BOMB-CLU', BM({ bc: 0x7a6a9a, impact: 'cluster' })); put('BOMB-PEN', BM({ bc: 0x303430, nc: 0xcc3322, impact: 'shock' })); put('BOMB-WP', BM({ bc: 0xdddddd, impact: 'smoke' }));
+  put('BOMB-HEAT', BM({ bc: 0x5a604a, impact: 'jet' })); put('BOMB-AP', BM({ bc: 0x2a2c2a, impact: 'apHE' })); put('TORP', BM({ bc: 0x384048, nc: 0xe0e0e0, impact: 'shock' }));
   put('RKT-HE', RK({ trail: SM(0x707070, 4, 1.6, 5, 2.6, 0.55) }));
   put('RKT-FRAG', RK({}));
   put('RKT-DEM', RK({ bc: 0x45493a, impact: 'shock', trail: SM(0x606060, 4, 1.4, 4.5, 2.4, 0.55) }));
@@ -73,6 +80,13 @@
   function glowSprite(color, size) { return SB.FX.sprite(color, size, true); }
   function make(A) {
     const st = style(A);
+    if (st.body === 'bomb') {                                  // bomba: corpo gordo + ogiva + aletas, sem chama
+      const r = Math.max(0.12, Math.min(0.5, A.d / 1000 * 0.5)), bl = Math.max(0.9, Math.min(5, (A.L || 1000) / 1000 * 0.9)), grp = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, bl, 10), new THREE.MeshLambertMaterial({ color: st.bc })); body.rotation.x = Math.PI / 2; grp.add(body);
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(r, r * 1.8, 10), new THREE.MeshLambertMaterial({ color: st.nc })); nose.rotation.x = Math.PI / 2; nose.position.z = bl / 2 + r * 0.9; grp.add(nose);
+      for (let k = 0; k < 4; k++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.03, r * 2.4, r * 1.6), new THREE.MeshLambertMaterial({ color: st.nc })); f.position.z = -bl / 2 + r * 0.8; f.rotation.z = k * Math.PI / 2; grp.add(f); }
+      return { mesh: grp, style: st };
+    }
     if (st.body === 'streak') {
       const g = new THREE.CylinderGeometry(st.w, st.w * 0.6, st.len, 6, 1); g.translate(0, -st.len / 2, 0);
       const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: st.core, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));

@@ -81,8 +81,21 @@
   add('DUMMY', { n: 'DUMMY (inerte de manejo)', cls: 'TR', k: 0.05, inert: true });
   /* ---- extra de helicóptero: míssil ar-ar (só contra aeronaves) ---- */
   add('AAM', { n: 'AAM (míssil ar-ar infravermelho)', cls: 'AA', fam: 'he', guid: 'ir', burst: 'prox', frag: 1.5, ric: [85, 89] });
+  /* ---- armamentos aéreos (PDF War Thunder): bombas e torpedos, foguetes AP/HESH ---- */
+  const bm = { cls: 'BM', fam: 'he', ric: [85, 89] };
+  add('BOMB-HE', Object.assign({ n: 'BOMB-HE (bomba de alto explosivo)', blast: 1.6, frag: 1.2 }, bm));
+  add('BOMB-FRAG', Object.assign({ n: 'BOMB-FRAG (fragmentação)', blast: 1.2, frag: 2.4 }, bm));
+  add('BOMB-INC', Object.assign({ n: 'BOMB-INC (incendiária / napalm)', blast: 0.8, fire: 0.95 }, bm));
+  add('BOMB-CLU', Object.assign({ n: 'BOMB-CLU (submunições)', burst: 'prox', sub: 28, frag: 1.3 }, bm));
+  add('BOMB-PEN', Object.assign({ n: 'BOMB-PEN (penetrante anti-bunker)', blast: 2.2 }, bm));
+  add('BOMB-WP', Object.assign({ n: 'BOMB-WP (fumígena / fósforo)', smoke: 1, fire: 0.5 }, bm));
+  add('BOMB-HEAT', { n: 'BOMB-HEAT (carga oca)', cls: 'BM', fam: 'heat', ric: [80, 88] });
+  add('BOMB-AP', { n: 'BOMB-AP (perfurante)', cls: 'BM', fam: 'shot', k: 0.8, norm: 3, ric: [75, 86] });
+  add('TORP', Object.assign({ n: 'TORP (torpedo)', blast: 2.2 }, bm));
+  add('RKT-AP', { n: 'RKT-AP (foguete perfurante)', cls: 'RK', rocket: true, fam: 'shot', k: 0.9, norm: 3, ric: [70, 84] });
+  add('RKT-HESH', { n: 'RKT-HESH (foguete HESH)', cls: 'RK', rocket: true, fam: 'hesh', ric: [82, 89] });
   SB.TYPE = T;
   /* classe de arma: 'gun' | 'rocket' | 'missile' | 'aam' */
-  SB.wcls = a => { const t = T[a.type] || T.AP; return t.cls === 'RK' ? 'rocket' : t.cls === 'MS' ? 'missile' : t.cls === 'AA' ? 'aam' : 'gun'; };
-  SB.CLS_NAMES = { KE: 'Cinética (calibre pleno)', KS: 'Cinética (subcalibre)', HE: 'Alto explosivo', HT: 'Carga oca', MS: 'Mísseis e guiadas', RK: 'Foguetes não guiados', AP: 'Antipessoal', SP: 'Especial', TR: 'Treino', AA: 'Ar-ar' };
+  SB.wcls = a => { const t = T[a.type] || T.AP; return t.cls === 'RK' ? 'rocket' : t.cls === 'MS' ? 'missile' : t.cls === 'AA' ? 'aam' : t.cls === 'BM' ? 'bomb' : 'gun'; };
+  SB.CLS_NAMES = { KE: 'Cinética (calibre pleno)', KS: 'Cinética (subcalibre)', HE: 'Alto explosivo', HT: 'Carga oca', MS: 'Mísseis e guiadas', RK: 'Foguetes não guiados', AP: 'Antipessoal', SP: 'Especial', TR: 'Treino', AA: 'Ar-ar', BM: 'Bombas e torpedos' };
 })(window.SB);
