@@ -196,7 +196,7 @@
  <div id="rpf" class="frame" style="display:none;left:16px;top:62px;width:420px;height:280px"><span></span></div>
  <div id="xrf" class="frame" style="display:none;right:12px;bottom:192px;width:330px;height:230px"><span>RAIO-X DO MEU TANQUE (X)</span></div>
  <div id="status"><div id="spd">0 km/h</div><div id="rng">alcance: --</div><div id="crewl"></div><canvas id="mods" width="200" height="120"></canvas></div>
-<canvas id="ret" width="460" height="320" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none"></canvas>
+<canvas id="ret" width="620" height="420" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none"></canvas>
  <div id="chat" style="position:absolute;left:12px;bottom:210px;width:340px;font:12px monospace;pointer-events:none"></div><input id="chatin" maxlength="140" placeholder="Mensagem (Enter envia)" style="position:absolute;left:12px;bottom:186px;width:340px;display:none;background:rgba(8,14,22,.85);color:#e8f0ff;border:1px solid #3a6ea5;border-radius:5px;padding:4px 8px;font:12px monospace">
  <div id="netinfo" style="position:absolute;right:12px;top:40px;font:11px monospace;color:#9fc4ff;text-align:right;pointer-events:none"></div>
  <div id="lkh" style="position:absolute;left:50%;bottom:118px;transform:translateX(-50%);font:600 13px monospace;padding:3px 10px;border-radius:5px;background:rgba(8,14,22,.7);display:none"></div>
