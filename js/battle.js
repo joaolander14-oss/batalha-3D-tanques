@@ -314,7 +314,7 @@
       const stabOk = e.isHeli || st.rof || (S.hasStab && !S.stabDead), mov = Math.abs(e.v) > 0.8 || Math.abs(c.steer) > 0.3, sway = stabOk || !mov ? 0 : Math.min(1, Math.abs(e.v) / 6);
       const lim = st.fixedGun ? 8 * D2R : 9, wantT = wrap(c.aimYaw - e.yaw + Math.sin(B.t * 2.3 + e.x * 0.1) * 0.012 * sway), goalT = st.fixedGun ? clamp(wantT, -lim, lim) : wantT, rate = st.trav * D2R * S.travF * (stabOk ? (st.hasStab || S.hasStab ? 2.2 : 1) : mov ? 0.6 : 1);
       e.tYaw += clamp(wrap(goalT - e.tYaw), -rate * dt, rate * dt);
-      const wantP = c.aimPitch - (stabOk || !mov ? 1 : 0.15) * e.pitch * Math.cos(e.tYaw) + Math.sin(B.t * 3.1 + e.z * 0.1) * 0.014 * sway, goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF) * (stabOk || !mov ? 1 : 0.5);
+      const wantP = c.aimPitch - (stabOk || !mov ? 1 : 0.15) * e.pitch * Math.cos(e.tYaw) + Math.sin(B.t * 3.1 + e.z * 0.1) * 0.014 * sway, goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF) * (stabOk ? (S.hasStab ? 2.5 : 1) : mov ? 0.5 : 1);
       e.gP += clamp(goalP - e.gP, -rp * dt, rp * dt);
     }
     poseEnt(e, Math.min(1, dt * 6));
@@ -1034,8 +1034,14 @@
       lh.textContent = t; lh.style.color = col; lh.style.display = t ? 'block' : 'none'; }
     const rt = me.isHeli ? 1 / ((me.ammo[me.sel].A.rof) || 4) : reloadT(me), rr = me.reload > 0 ? 1 - me.reload / Math.max(rt, 0.05) : 1; $('reload').firstChild.style.width = clamp(rr, 0, 1) * 100 + '%'; $('reload').style.opacity = rr < 1 ? 1 : 0.35;
     // marcador do canhão
-    const gm = $('gunmk'); const { p, d } = muzzleInfo(me), R = Math.min(B.aimR, 2500), A = me.ammo[me.sel].A, pt = p.clone().addScaledVector(d, R); pt.y -= R * Math.tan(droop(A, R)); const sp = proj(pt);
-    gm.style.display = sp && me.alive ? 'block' : 'none'; if (sp) { gm.style.left = sp[0] + 'px'; gm.style.top = sp[1] + 'px'; }
+    const gm = $('gunmk');
+    if (me.isHeli) { const { p, d } = muzzleInfo(me), R = Math.min(B.aimR, 2500), A = me.ammo[me.sel].A, pt = p.clone().addScaledVector(d, R); pt.y -= R * Math.tan(droop(A, R)); const sp = proj(pt); gm.style.display = sp && me.alive ? 'block' : 'none'; if (sp) { gm.style.left = sp[0] + 'px'; gm.style.top = sp[1] + 'px'; } }
+    else {      // marcador = erro do cano em relação ao comando: com estabilizador fica no centro da mira
+      const c = me.ctl, fov = (B.camera.fov || 60) * Math.PI / 180, f = (innerHeight / 2) / Math.tan(fov / 2);
+      const ey = wrap(c.aimYaw - (me.yaw + me.tYaw)), ep = (me.gP + me.pitch * Math.cos(me.tYaw)) - c.aimPitch, ang = Math.hypot(ey, ep) * 57.2958;
+      gm.style.display = me.alive ? 'block' : 'none'; gm.style.left = (innerWidth / 2 + clamp(f * Math.tan(ey), -innerWidth / 3, innerWidth / 3)) + 'px'; gm.style.top = (innerHeight / 2 + clamp(-f * Math.tan(ep), -innerHeight / 3, innerHeight / 3)) + 'px';
+      gm.style.borderColor = ang < 0.25 ? '#7fe38f' : ang < 1.2 ? '#ffd06a' : '#ff8a6a';
+    }
     SB.FCS.draw(B, me, $('ret'));
     $('scope').style.display = B.scope ? 'block' : 'none'; $('cross').style.display = B.scope ? 'none' : 'block';
     drawMods(me); drawMini(me);
