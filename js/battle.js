@@ -312,13 +312,15 @@
     if (e.alive) {
       // estabilizador: com ele o canhão fica na mira mesmo andando/virando/em rampa; sem ele acompanha o balanço do casco
       const stabOk = e.isHeli || st.rof || (S.hasStab && !S.stabDead), mov = Math.abs(e.v) > 0.8 || Math.abs(c.steer) > 0.3, sway = stabOk || !mov ? 0 : Math.min(1, Math.abs(e.v) / 6);
-      const lim = st.fixedGun ? 8 * D2R : 9, wantT = wrap(c.aimYaw - e.yaw + Math.sin(B.t * 2.3 + e.x * 0.1) * 0.012 * sway), goalT = st.fixedGun ? clamp(wantT, -lim, lim) : wantT, rate = st.trav * D2R * S.travF * (stabOk ? (st.hasStab || S.hasStab ? 2.2 : 1) : mov ? 0.6 : 1);
+      // direção desejada no referencial do casco (inclui inclinação/rolagem): torre de lado em rampa fica certa
+      let Dl = null; if (!e.isHeli) Dl = new V3(-Math.sin(c.aimYaw) * Math.cos(c.aimPitch), Math.sin(c.aimPitch), -Math.cos(c.aimYaw) * Math.cos(c.aimPitch)).applyQuaternion(e.G.quaternion.clone().invert());
+      const exact = stabOk || !mov, lim = st.fixedGun ? 8 * D2R : 9, wantT = (Dl && exact ? Math.atan2(-Dl.x, -Dl.z) : wrap(c.aimYaw - e.yaw)) + Math.sin(B.t * 2.3 + e.x * 0.1) * 0.012 * sway, goalT = st.fixedGun ? clamp(wantT, -lim, lim) : wantT, rate = st.trav * D2R * S.travF * (stabOk ? (st.hasStab || S.hasStab ? 2.2 : 1) : mov ? 0.6 : 1);
       if (e === B.me && !e.isHeli) {      // realimentação: corrige o erro medido do cano real (rampas, rolagem, folgas)
         const d = muzzleInfo(e).d, ey = wrap(c.aimYaw - Math.atan2(-d.x, -d.z)), ep = c.aimPitch - Math.asin(clamp(d.y, -1, 1));
         if (Math.abs(ey) < 0.06 && Math.abs(ep) < 0.06) { e.cY = clamp((e.cY || 0) + ey * dt * 5, -0.05, 0.05); e.cP = clamp((e.cP || 0) + ep * dt * 5, -0.05, 0.05); } else { e.cY = (e.cY || 0) * 0.9; e.cP = (e.cP || 0) * 0.9; }
       }
       e.tYaw += clamp(wrap(goalT - e.tYaw + (e.cY || 0)), -rate * dt, rate * dt);
-      const wantP = c.aimPitch + (e.cP || 0) - (stabOk || !mov ? 1 : 0.15) * e.pitch * Math.cos(e.tYaw) + Math.sin(B.t * 3.1 + e.z * 0.1) * 0.014 * sway, goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF) * (stabOk ? (S.hasStab ? 2.5 : 1) : mov ? 0.5 : 1);
+      const wantP = (Dl ? (exact ? Math.asin(clamp(Dl.y, -1, 1)) : 0.15 * Math.asin(clamp(Dl.y, -1, 1)) + 0.85 * c.aimPitch) : c.aimPitch - e.pitch * Math.cos(e.tYaw)) + (e.cP || 0) + Math.sin(B.t * 3.1 + e.z * 0.1) * 0.014 * sway, goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF) * (stabOk ? (S.hasStab ? 2.5 : 1) : mov ? 0.5 : 1);
       e.gP += clamp(goalP - e.gP, -rp * dt, rp * dt);
     }
     poseEnt(e, Math.min(1, dt * 6));
