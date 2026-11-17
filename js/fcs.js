@@ -35,8 +35,13 @@
       const e = hit.e, tof = r / Math.max(200, A.v0 * 0.92);
       lead = new V3(hit.p.x - Math.sin(e.yaw) * e.v * tof, hit.p.y + (e.vy || 0) * tof, hit.p.z - Math.cos(e.yaw) * e.v * tof); pt = lead;
     }
+    if (!exact && !me.stat.rf && hit.r < 3190) {      // sem telêmetro: estimativa visual (±8%, de 50 em 50 m) em vez de alça fixa
+      if (!B.estT || B.t - B.estT > 3) { B.estT = B.t; B.estBias = (Math.random() - 0.5) * 0.16; }
+      r = Math.max(50, Math.round(hit.r * (1 + B.estBias) / 50) * 50);
+    }
+    const rel = exact || rf.r != null || (!me.stat.rf && hit.r < 3190);   // medida a partir da câmera: a distância do cano é recalculada em update()
     B.fc = { r, exact, lead: !!lead, tof: r / Math.max(200, A.v0 * 0.92) };
-    return { pt, r };
+    return { pt, r, rel, dr: exact ? 0 : rel ? r - hit.r : 0 };
   }
 
   /* retículo: distância, altura, elevação, alça (marcas de queda por distância) */

@@ -45,3 +45,6 @@ No lobby: dificuldade por equipe (Recruta, Normal, Veterano, Elite: pontaria, an
 - **Laser:** só dispara com a mira no inimigo; a 350 m do alvo o míssil vai sozinho.
 - **Mapas novos (10 no total):** tundra nevada, floresta densa, vale das montanhas, vila rural, zona industrial, desfiladeiro, pântano.
 - **Online:** chat (Enter, também em batalha), troca de equipe, expulsão pelo anfitrião, ping/transporte visível, resumo da partida para os convidados, bot assume o veículo de quem sai, snapshots com pitch/roll/subida das aeronaves.
+
+## v47: precisão do tiro
+A pontaria parte da boca do cano (sem paralaxe da câmera), o ângulo de elevação é calculado simulando a mesma balística do projétil (arrasto + gravidade) e há realimentação pelo cano real. Sem telêmetro a distância é estimada visualmente (±8%, de 50 em 50 m). Em terreno plano o tiro cai a menos de ~0,5 m da mira de 150 a 1000 m, parado ou andando.

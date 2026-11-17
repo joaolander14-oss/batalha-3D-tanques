@@ -313,8 +313,12 @@
       // estabilizador: com ele o canhão fica na mira mesmo andando/virando/em rampa; sem ele acompanha o balanço do casco
       const stabOk = e.isHeli || st.rof || (S.hasStab && !S.stabDead), mov = Math.abs(e.v) > 0.8 || Math.abs(c.steer) > 0.3, sway = stabOk || !mov ? 0 : Math.min(1, Math.abs(e.v) / 6);
       const lim = st.fixedGun ? 8 * D2R : 9, wantT = wrap(c.aimYaw - e.yaw + Math.sin(B.t * 2.3 + e.x * 0.1) * 0.012 * sway), goalT = st.fixedGun ? clamp(wantT, -lim, lim) : wantT, rate = st.trav * D2R * S.travF * (stabOk ? (st.hasStab || S.hasStab ? 2.2 : 1) : mov ? 0.6 : 1);
-      e.tYaw += clamp(wrap(goalT - e.tYaw), -rate * dt, rate * dt);
-      const wantP = c.aimPitch - (stabOk || !mov ? 1 : 0.15) * e.pitch * Math.cos(e.tYaw) + Math.sin(B.t * 3.1 + e.z * 0.1) * 0.014 * sway, goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF) * (stabOk ? (S.hasStab ? 2.5 : 1) : mov ? 0.5 : 1);
+      if (e === B.me && !e.isHeli) {      // realimentação: corrige o erro medido do cano real (rampas, rolagem, folgas)
+        const d = muzzleInfo(e).d, ey = wrap(c.aimYaw - Math.atan2(-d.x, -d.z)), ep = c.aimPitch - Math.asin(clamp(d.y, -1, 1));
+        if (Math.abs(ey) < 0.06 && Math.abs(ep) < 0.06) { e.cY = clamp((e.cY || 0) + ey * dt * 5, -0.05, 0.05); e.cP = clamp((e.cP || 0) + ep * dt * 5, -0.05, 0.05); } else { e.cY = (e.cY || 0) * 0.9; e.cP = (e.cP || 0) * 0.9; }
+      }
+      e.tYaw += clamp(wrap(goalT - e.tYaw + (e.cY || 0)), -rate * dt, rate * dt);
+      const wantP = c.aimPitch + (e.cP || 0) - (stabOk || !mov ? 1 : 0.15) * e.pitch * Math.cos(e.tYaw) + Math.sin(B.t * 3.1 + e.z * 0.1) * 0.014 * sway, goalP = clamp(wantP, st.elev[0] * D2R, st.elev[1] * D2R), rp = (st.elevRate || 0.5) * Math.max(0.25, S.travF) * (stabOk ? (S.hasStab ? 2.5 : 1) : mov ? 0.5 : 1);
       e.gP += clamp(goalP - e.gP, -rp * dt, rp * dt);
     }
     poseEnt(e, Math.min(1, dt * 6));
@@ -589,6 +593,14 @@
 
   /* ---------------- IA dos bots ---------------- */
   function enemies(e) { return [...B.ents.values()].filter(o => o.alive && o.team !== e.team); }
+  /* ângulo de tiro exato: simula a mesma balística do projétil (arrasto + gravidade) e acha o ângulo que passa pelo ponto (distância r, inclinação phi da linha de visada) */
+  function elevAngle(A, r, phi) {
+    const key = ((r / 4) | 0) + ':' + Math.round(phi * 150), cc = A._el || (A._el = {}); if (cc[key] != null) return cc[key];
+    const rh = Math.max(5, r * Math.cos(phi)), yt = r * Math.sin(phi), dt = 0.02; let lo = phi - 0.03, hi = phi + 0.5;
+    const simY = th => { let x = 0, y = 0, vx = A.v0 * Math.cos(th), vy = A.v0 * Math.sin(th); for (let i = 0; i < 700; i++) { const f = Math.exp(-A.k * Math.hypot(vx, vy) * dt); vx *= f; vy *= f; vy -= G * dt; const nx = x + vx * dt; if (nx >= rh) return y + vy * dt * ((rh - x) / Math.max(1e-6, vx * dt)); x = nx; y += vy * dt; } return -1e9; };
+    for (let it = 0; it < 14; it++) { const mid = (lo + hi) / 2; if (simY(mid) < yt) lo = mid; else hi = mid; }
+    const a = (lo + hi) / 2; if (Object.keys(cc).length > 4000) A._el = {}; (A._el || cc)[key] = a; return a;
+  }
   function droop(A, r) { const v = A.v0 * Math.exp(-A.k * r * 0.5); return Math.asin(clamp(G * r / (2 * v * v), 0, 0.6)); }
   /* ---------------- base, zonas, manutenção e reparo ---------------- */
   const cH = () => B.map.core / 2;
@@ -792,8 +804,10 @@
       const cd = camDir(), co = camOrigin(cd), hit = rangeAlong(co, cd);
       B.aimR = hit.r; B.aimPt = hit.p; B.aimEnt = hit.e || null; const tp = new V3(me.x, me.y + 2.3, me.z), A = me.ammo[me.sel].A;
       if (!me.isHeli) { if (k.KeyE) B.gOff = Math.min(0.35, (B.gOff || 0) + 0.06 * dt); if (k.KeyQ) B.gOff = Math.max(-0.2, (B.gOff || 0) - 0.06 * dt); if (k.KeyN) B.gOff = 0; }   // elevação extra do canhão, independente da mira
-      const fcs = SB.FCS.solve(B, me, hit, A, dt), dv = fcs.pt.clone().sub(tp), hd = Math.hypot(dv.x, dv.z);
-      c.aimYaw = Math.atan2(-dv.x, -dv.z); c.aimPitch = Math.atan2(dv.y, hd) + droop(A, fcs.r) + (me.isHeli ? 0 : B.gOff || 0);
+      const fcs = SB.FCS.solve(B, me, hit, A, dt), org = me.isHeli ? tp : muzzleInfo(me).p, dv = fcs.pt.clone().sub(org), hd = Math.hypot(dv.x, dv.z), phi = Math.atan2(dv.y, hd);   // a pontaria parte do cano (sem paralaxe)
+      c.aimYaw = Math.atan2(-dv.x, -dv.z);
+      if (me.isHeli || A.wc !== 'gun') c.aimPitch = phi + droop(A, fcs.r);
+      else c.aimPitch = elevAngle(A, fcs.rel ? Math.max(30, dv.length() + fcs.dr) : fcs.r, phi) + (B.gOff || 0);
       if (me.isHeli || me.st.radar) SB.Radar.tick(B, me, dt);
       SB.Locks.tick(B, me, dt, cd);
       if (me.st.plane) { c.steer = clamp(clamp(wrap(B.camYaw - me.yaw) * 2.6, -1, 1) + ((k.KeyA ? 1 : 0) - (k.KeyD ? 1 : 0)) * 0.3, -1, 1); c.lift = clamp((B.camPitch - me.pitch) * 3.5, -1, 1); }   // avião: o nariz segue a mira do mouse
@@ -1038,7 +1052,7 @@
     if (me.isHeli) { const { p, d } = muzzleInfo(me), R = Math.min(B.aimR, 2500), A = me.ammo[me.sel].A, pt = p.clone().addScaledVector(d, R); pt.y -= R * Math.tan(droop(A, R)); const sp = proj(pt); gm.style.display = sp && me.alive ? 'block' : 'none'; if (sp) { gm.style.left = sp[0] + 'px'; gm.style.top = sp[1] + 'px'; } }
     else {      // marcador = erro do cano em relação ao comando: com estabilizador fica no centro da mira
       const c = me.ctl, fov = (B.camera.fov || 60) * Math.PI / 180, f = (innerHeight / 2) / Math.tan(fov / 2);
-      const ey = wrap(c.aimYaw - (me.yaw + me.tYaw)), ep = (me.gP + me.pitch * Math.cos(me.tYaw)) - c.aimPitch, ang = Math.hypot(ey, ep) * 57.2958;
+      const md = muzzleInfo(me).d, ey = wrap(c.aimYaw - Math.atan2(-md.x, -md.z)), ep = Math.asin(clamp(md.y, -1, 1)) - c.aimPitch, ang = Math.hypot(ey, ep) * 57.2958;
       gm.style.display = me.alive ? 'block' : 'none'; gm.style.left = (innerWidth / 2 + clamp(f * Math.tan(ey), -innerWidth / 3, innerWidth / 3)) + 'px'; gm.style.top = (innerHeight / 2 + clamp(-f * Math.tan(ep), -innerHeight / 3, innerHeight / 3)) + 'px';
       gm.style.borderColor = ang < 0.25 ? '#7fe38f' : ang < 1.2 ? '#ffd06a' : '#ff8a6a';
     }
@@ -1085,5 +1099,5 @@
     $('score').innerHTML = '<table><tr><th>Jogador</th><th>Tanque</th><th>Equipe</th><th>Abates</th><th>Mortes</th></tr>' + rows.map(e => '<tr style="color:' + TEAMCOL[e.team] + '"><td>' + e.name + '</td><td>' + e.def.name + '</td><td>' + (e.team === 'A' ? 'Azul' : 'Verm.') + '</td><td>' + e.kills + '</td><td>' + e.deaths + '</td></tr>').join('') + '</table>';
   }
 
-  SB.Battle = { droop, step(dt) { update(dt); }, dropFlares, start, stop, get state() { return B; }, defaultLoadout };
+  SB.Battle = { droop, elevAngle, step(dt) { update(dt); }, dropFlares, start, stop, get state() { return B; }, defaultLoadout };
 })(window.SB);
